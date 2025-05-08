@@ -1,0 +1,6 @@
+[package]
+name = "foundation"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
