@@ -1,13 +1,19 @@
 use alloc::{
     alloc::{alloc, dealloc, realloc},
+    boxed::Box,
     vec::Vec,
 };
+use iter::Iter;
 
 use core::{
     alloc::Layout,
     ops::{Index, IndexMut, Range},
     ptr::{self, NonNull},
 };
+
+use super::sequences::Sequence;
+
+mod iter;
 
 #[derive(Debug, Clone)]
 pub struct Array<T> {
@@ -33,7 +39,7 @@ impl<T> Default for Array<T> {
 }
 
 impl<T> Array<T> {
-    /// Creates a new instance with the given capacity.
+    /// Creates an array with the specified capacity, then calls the given closure with a buffer covering the array’s uninitialized memory.
     ///
     /// # Panics
     ///
@@ -45,7 +51,10 @@ impl<T> Array<T> {
     /// These panics prevent the creation of an instance with an invalid or null pointer.
     /// For fallible allocation, consider using a method that returns a `Result` instead.
     #[must_use]
-    pub fn new(capacity: usize) -> Self {
+    pub fn with_uninitialized<F>(capacity: usize, initializer: F) -> Self
+    where
+        F: FnOnce(*mut T, &mut usize),
+    {
         let ptr = if capacity == 0 {
             NonNull::dangling()
         } else {
@@ -54,11 +63,26 @@ impl<T> Array<T> {
             NonNull::new(raw).expect("Memory allocation failed")
         };
 
+        let mut length: usize = 0;
+        initializer(ptr.as_ptr(), &mut length);
+
         Self {
             ptr,
             capacity,
-            length: 0,
+            length,
         }
+    }
+
+    pub fn repeating(value: T, count: usize) -> Self
+    where
+        T: Copy,
+    {
+        Self::with_uninitialized(count, |ptr, len| unsafe {
+            for i in 0..count {
+                ptr::write(ptr.add(i), value);
+            }
+            *len = count;
+        })
     }
 
     /// A `bool` value indicating whether the collection is empty.
@@ -123,9 +147,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(4);
+    /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// array.insert(3, 1); // Inserts 3 at index 1
@@ -165,9 +189,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(5);
+    /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// array.append(3);
@@ -201,7 +225,7 @@ impl<T> Array<T> {
         let shift_amount = if new_values.len() > removed {
             new_values.len() - removed
         } else {
-            0 // Don't attempt to shift if there are no extra elements
+            0
         };
 
         while self.length - removed + new_values.len() > self.capacity {
@@ -211,7 +235,6 @@ impl<T> Array<T> {
         self.shift_right(range.end, shift_amount);
         self.write_slice(range.start, &new_values);
 
-        // Safely update the length
         self.length = self.length.saturating_sub(removed) + new_values.len();
     }
 
@@ -233,9 +256,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(3);
+    /// let mut array = Array::default();
     /// array.append(10);
     /// array.append(20);
     /// let value = array.remove(0);
@@ -264,9 +287,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(2);
+    /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// let first = array.remove_first();
@@ -289,9 +312,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(3);
+    /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// array.append(3);
@@ -318,9 +341,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(2);
+    /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// let last = array.remove_last();
@@ -340,9 +363,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(4);
+    /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// array.append(3);
@@ -377,9 +400,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(5);
+    /// let mut array = Array::default();
     /// array.append(10);
     /// array.append(20);
     /// array.append(30);
@@ -437,9 +460,9 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::Array;
+    /// use foundation::collections::array::Array;
     ///
-    /// let mut array = Array::new(3);
+    /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// array.append(3);
@@ -465,6 +488,176 @@ impl<T> Array<T> {
         } else {
             Some(self.remove_last())
         }
+    }
+
+    pub fn first_index_of(&self, element: &T) -> Option<usize>
+    where
+        T: PartialEq,
+    {
+        (0..self.length).find(|&i| &self[i] == element)
+    }
+
+    pub fn index_of(&self, element: &T) -> Option<usize>
+    where
+        T: PartialEq,
+    {
+        self.first_index_of(element)
+    }
+
+    pub fn first_index_where<F>(&self, predicate: F) -> Option<usize>
+    where
+        F: Fn(&T) -> bool,
+    {
+        (0..self.length).find(|&i| predicate(&self[i]))
+    }
+
+    pub fn last_where<F>(&self, predicate: F) -> Option<&T>
+    where
+        F: Fn(&T) -> bool,
+    {
+        for i in (0..self.length).rev() {
+            if predicate(&self[i]) {
+                return Some(&self[i]);
+            }
+        }
+        None
+    }
+
+    pub fn last_index_of(&self, element: &T) -> Option<usize>
+    where
+        T: PartialEq,
+    {
+        (0..self.length).rev().find(|&i| &self[i] == element)
+    }
+
+    pub fn last_index_where<F>(&self, predicate: F) -> Option<usize>
+    where
+        F: Fn(&T) -> bool, // The predicate takes a reference to an element and returns a bool
+    {
+        (0..self.length).rev().find(|&i| predicate(&self[i]))
+    }
+
+    #[must_use]
+    pub fn prefix(&self, n: usize) -> Self
+    where
+        T: Copy,
+    {
+        let count = n.min(self.length);
+        let mut result = Self::default();
+        for i in 0..count {
+            result.append(self[i]);
+        }
+        result
+    }
+
+    #[must_use]
+    pub fn prefix_through(&self, index: usize) -> Array<T>
+    where
+        T: Copy,
+    {
+        assert!(index < self.length, "Index out of bounds");
+        self.prefix(index + 1)
+    }
+
+    #[must_use]
+    pub fn prefix_up_to(&self, index: usize) -> Array<T>
+    where
+        T: Copy,
+    {
+        assert!(index <= self.length, "Index out of bounds");
+        self.prefix(index)
+    }
+
+    #[must_use]
+    pub fn prefix_while<F>(&self, predicate: F) -> Self
+    where
+        T: Copy,
+        F: Fn(&T) -> bool,
+    {
+        let mut result = Self::default();
+        for i in 0..self.length {
+            if predicate(&self[i]) {
+                result.append(self[i]);
+            } else {
+                break;
+            }
+        }
+        result
+    }
+
+    #[must_use]
+    pub fn suffix(&self, n: usize) -> Self
+    where
+        T: Copy,
+    {
+        let start = self.length.saturating_sub(n);
+        let mut result = Self::default();
+        for i in start..self.length {
+            result.append(self[i]);
+        }
+        result
+    }
+
+    #[must_use]
+    pub fn suffix_from(&self, index: usize) -> Self
+    where
+        T: Copy,
+    {
+        assert!(index <= self.length, "Index out of bounds");
+        let mut result = Self::default();
+        for i in index..self.length {
+            result.append(self[i]);
+        }
+        result
+    }
+
+    #[must_use]
+    pub fn drop_first(&self, n: usize) -> Self
+    where
+        T: Copy,
+    {
+        let start = n.min(self.length);
+
+        Self::with_uninitialized(self.length - start, |ptr: *mut T, len| unsafe {
+            for i in start..self.length {
+                ptr::write(ptr.add(i - start), self[i]);
+            }
+            *len = self.length - start;
+        })
+    }
+
+    #[must_use]
+    pub fn drop_last(&self, n: usize) -> Self
+    where
+        T: Copy,
+    {
+        let end = self.length.saturating_sub(n);
+
+        Self::with_uninitialized(end, |ptr: *mut T, len| unsafe {
+            for i in 0..end {
+                ptr::write(ptr.add(i), self[i]);
+            }
+            *len = end;
+        })
+    }
+
+    #[must_use]
+    pub fn drop_while<F>(&self, predicate: F) -> Self
+    where
+        T: Copy,
+        F: Fn(&T) -> bool,
+    {
+        let mut start = 0;
+        while start < self.length && predicate(&self[start]) {
+            start += 1;
+        }
+
+        Self::with_uninitialized(self.length - start, |ptr: *mut T, len| unsafe {
+            for i in start..self.length {
+                ptr::write(ptr.add(i - start), self[i]);
+            }
+            *len = self.length - start;
+        })
     }
 
     fn insert_values_at<I>(&mut self, at: usize, contents: I)
@@ -541,6 +734,19 @@ impl<T> Array<T> {
     }
 }
 
+impl<'a, T: 'a> Sequence for &'a Array<T> {
+    type Item = &'a T;
+    type Iterator = core::slice::Iter<'a, T>;
+
+    fn iter(&self) -> Self::Iterator {
+        self.into_iter()
+    }
+
+    fn underestimated_count(&self) -> usize {
+        self.length
+    }
+}
+
 impl<T> Index<usize> for Array<T> {
     type Output = T;
 
@@ -554,6 +760,54 @@ impl<T> IndexMut<usize> for Array<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         assert!((index < self.length), "Index out of bounds");
         unsafe { &mut *self.ptr.as_ptr().add(index) }
+    }
+}
+
+impl<T> FromIterator<T> for Array<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let iter = iter.into_iter();
+        let (lower, _) = iter.size_hint();
+        let mut array = Self::default();
+        array.reserve_capacity(lower);
+        for item in iter {
+            array.append(item);
+        }
+        array
+    }
+}
+
+impl<T> IntoIterator for Array<T> {
+    type Item = T;
+    type IntoIter = Iter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let iter = Iter {
+            ptr: self.ptr,
+            capacity: self.capacity,
+            start: 0,
+            end: self.length,
+        };
+
+        core::mem::forget(self);
+        iter
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Array<T> {
+    type Item = &'a T;
+    type IntoIter = core::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        unsafe { core::slice::from_raw_parts(self.ptr.as_ptr(), self.length).iter() }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Array<T> {
+    type Item = &'a mut T;
+    type IntoIter = core::slice::IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        unsafe { core::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.length).iter_mut() }
     }
 }
 
@@ -574,23 +828,20 @@ impl<T> Drop for Array<T> {
 #[macro_export]
 macro_rules! array {
     ($($elem:expr),* $(,)?) => {{
-        let mut arr = $crate::collections::Array::new(0);
+        let mut arr = $crate::collections::array::Array::default();
         $(arr.append($elem);)*
         arr
     }};
 
     ($elem:expr; $count:expr) => {{
-        let mut arr = $crate::collections::Array::new($count);
-        for _ in 0..$count {
-            arr.append($elem);
-        }
+        let arr = $crate::collections::array::Array::repeating($elem, $count);
         arr
     }};
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::collections::Array;
+    use crate::collections::array::Array;
 
     #[test]
     fn test_default_array() {
@@ -602,7 +853,7 @@ mod tests {
 
     #[test]
     fn test_append_and_indexing() {
-        let mut arr = Array::new(2);
+        let mut arr = Array::default();
         arr.append(10);
         arr.append(20);
         arr.append(30);
@@ -692,6 +943,7 @@ mod tests {
     #[test]
     fn test_macro_repeat() {
         let arr = array![7; 4];
+
         assert_eq!(arr.count(), 4);
         for i in 0..4 {
             assert_eq!(arr[i], 7);
@@ -700,7 +952,7 @@ mod tests {
 
     #[test]
     fn test_reserve_capacity() {
-        let mut arr = Array::new(2);
+        let mut arr = Array::default();
         arr.reserve_capacity(10);
         assert!(arr.capacity() >= 10);
         arr.append(1);
