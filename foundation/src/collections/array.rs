@@ -1,6 +1,5 @@
 use alloc::{
     alloc::{alloc, dealloc, realloc},
-    boxed::Box,
     vec::Vec,
 };
 use iter::Iter;
@@ -71,6 +70,14 @@ impl<T> Array<T> {
             capacity,
             length,
         }
+    }
+
+    pub fn iter(&self) -> core::slice::Iter<'_, T> {
+        self.into_iter()
+    }
+
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, T> {
+        self.into_iter()
     }
 
     pub fn repeating(value: T, count: usize) -> Self
@@ -550,8 +557,13 @@ impl<T> Array<T> {
         result
     }
 
+    /// Returns the prefix of the collection through the given index (inclusive).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than or equal to the length of the collection.
     #[must_use]
-    pub fn prefix_through(&self, index: usize) -> Array<T>
+    pub fn prefix_through(&self, index: usize) -> Self
     where
         T: Copy,
     {
@@ -559,8 +571,13 @@ impl<T> Array<T> {
         self.prefix(index + 1)
     }
 
+    /// Returns the prefix of the collection up to the given index (exclusive).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than the length of the collection.
     #[must_use]
-    pub fn prefix_up_to(&self, index: usize) -> Array<T>
+    pub fn prefix_up_to(&self, index: usize) -> Self
     where
         T: Copy,
     {
@@ -598,6 +615,11 @@ impl<T> Array<T> {
         result
     }
 
+    /// Returns the suffix of the collection starting at the given index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than the length of the collection.
     #[must_use]
     pub fn suffix_from(&self, index: usize) -> Self
     where
