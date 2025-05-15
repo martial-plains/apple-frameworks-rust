@@ -5,6 +5,7 @@ use core::{
 
 use alloc::alloc::dealloc;
 
+#[derive(Debug)]
 pub struct Iter<T> {
     pub(super) ptr: NonNull<T>,
     pub(super) capacity: usize,

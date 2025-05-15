@@ -249,6 +249,7 @@ pub trait Sequence {
     where
         Self::Item: Ord + Copy + Default,
     {
+        #[allow(clippy::many_single_char_names)]
         fn merge<T: Default + Copy + PartialOrd>(arr: &mut Array<T>, l: usize, m: usize, r: usize) {
             let (mut x, mut y, mut i, mut j, mut k) = (0, 0, 0, 0, 0);
             let len1: usize = m - l + 1;
@@ -338,6 +339,7 @@ pub trait Sequence {
         Self::Item: Copy + Default,
         F: FnMut(&Self::Item, &Self::Item) -> core::cmp::Ordering,
     {
+        #[allow(clippy::many_single_char_names)]
         fn merge<T, F>(arr: &mut Array<T>, l: usize, m: usize, r: usize, cmp: &mut F)
         where
             T: Copy + Default,
@@ -447,6 +449,7 @@ pub trait Sequence {
 }
 
 // A struct representing the PrefixSequence, which limits the number of elements from the base iterator.
+#[derive(Debug, Clone, Copy)]
 pub struct PrefixSequence<Base> {
     base: Base,
     limit: usize,
@@ -483,6 +486,7 @@ where
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct EnumeratedSequence<Base>
 where
     Base: IntoIterator,
@@ -518,6 +522,7 @@ where
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct DropFirstSequence<Base> {
     base: Base,
     dropping: usize,
@@ -552,6 +557,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct DropWhileSequence<Base, F> {
     base: Base,
     predicate: F,

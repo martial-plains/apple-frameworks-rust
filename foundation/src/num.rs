@@ -6,7 +6,7 @@ use alloc::string::String;
 
 pub mod traits;
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Number {
     Bool(bool),
     Int(isize),
