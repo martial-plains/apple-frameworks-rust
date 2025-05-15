@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+    <Type Name="foundation::collections::array::Array&lt;*&gt;">
+        <DisplayString>{{ capacity={capacity}, length={length} }}</DisplayString>
+        <Expand>
+            <Item Name="[size]">{length}</Item>
+            <Item Name="[capacity]">{capacity}</Item>
+            <ArrayItems>
+                <Size>{length}</Size>
+                <ValuePointer>{ptr.pointer}</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+</AutoVisualizer>
