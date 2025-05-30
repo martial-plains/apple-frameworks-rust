@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 
 use crate::{
     collections::{
-        DefaultIndices, IndexingIterator, Slice,
+        IndexingIterator,
         array::Array,
         sequences::{DropFirstSequence, EnumeratedSequence, PrefixSequence},
     },
@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub trait Collection:
-    Sequence<Iterator = IndexingIterator<Self>> + Index<Self::Index> + Sized + Clone
+    Sequence<Iterator = IndexingIterator<Self>> + Index<Self::Index> + Clone
 {
     type Index: PartialOrd + Copy;
 
