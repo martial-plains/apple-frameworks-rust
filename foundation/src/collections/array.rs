@@ -1,25 +1,128 @@
+/*!
+# Array Module
+
+This module provides a custom implementation of a dynamic array (`Array<T>`) that is designed to be similar to Swift's `Array`. Unlike Rust's `Vec<T>`, which is the standard dynamic array type in Rust, this implementation focuses on manual memory management and closely mirrors the behavior and structure of Swift's `Array`.
+
+The `Array` type is implemented using a raw pointer (`NonNull<T>`) to manage the underlying buffer of elements. This allows fine-grained control over memory allocation and deallocation, making it a great choice for low-level applications where custom memory management is desired.
+
+## Key Features
+- **Manual Memory Management**: Uses `NonNull<T>` to allocate and manage memory, providing a low-level implementation of dynamic arrays.
+- **Dynamic Size**: The array can grow or shrink as elements are added or removed, with dynamic resizing based on the current capacity.
+- **Swift-Like API**: Designed to offer an API and functionality similar to Swift’s `Array`, with methods for inserting, removing, and accessing elements.
+- **Efficient Memory Use**: Includes custom allocation and deallocation routines to optimize memory usage and reduce overhead.
+
+## Example Usage
+
+```rust
+use foundation::collections::Array;
+
+let mut arr = Array::default();
+arr.append(10);
+arr.append(20);
+arr.append(30);
+
+println!("Array: {:?}", arr);
+
+if let Some(value) = arr.pop_last() {
+    println!("Popped value: {}", value);
+}
+
+let first_element = arr.first();
+match first_element {
+    Some(&val) => println!("First element: {}", val),
+    None => println!("Array is empty"),
+}
+*/
+
 use alloc::{
     alloc::{alloc, dealloc, realloc},
     vec::Vec,
 };
-use iter::Iter;
 
 use core::{
     alloc::Layout,
+    clone::Clone,
+    cmp::{Ordering, PartialEq},
     ops::{Index, IndexMut, Range},
     ptr::{self, NonNull},
 };
 
-use super::sequences::Sequence;
+use crate::collections::{Collection, DefaultIndices, Sequence};
 
-mod iter;
+use super::sequences::IndexingIterator;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Array<T> {
     ptr: NonNull<T>,
     capacity: usize,
     length: usize,
 }
+
+impl<T: Clone> Clone for Array<T> {
+    fn clone(&self) -> Self {
+        Self::with_uninitialized(self.capacity, |dst, length| {
+            for i in 0..self.length {
+                unsafe {
+                    let src = self.ptr.as_ptr().add(i);
+                    let dst_ptr = dst.add(i);
+                    dst_ptr.write((*src).clone());
+                    *length += 1;
+                }
+            }
+        })
+    }
+}
+
+impl<T: PartialEq> PartialEq for Array<T> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.length != other.length {
+            return false;
+        }
+
+        for i in 0..self.length {
+            let a = unsafe { &*self.ptr.as_ptr().add(i) };
+            let b = unsafe { &*other.ptr.as_ptr().add(i) };
+            if a != b {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+impl<T: PartialOrd> PartialOrd for Array<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let min_len = self.length.min(other.length);
+        for i in 0..min_len {
+            let a = unsafe { self.ptr.as_ptr().add(i).read() };
+            let b = unsafe { other.ptr.as_ptr().add(i).read() };
+            match a.partial_cmp(&b) {
+                Some(Ordering::Equal) => {}
+                non_eq => return non_eq,
+            }
+        }
+        self.length.partial_cmp(&other.length)
+    }
+}
+
+impl<T: Ord> Ord for Array<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let min_len = self.length.min(other.length);
+        for i in 0..min_len {
+            let a = unsafe { self.ptr.as_ptr().add(i).read() };
+            let b = unsafe { other.ptr.as_ptr().add(i).read() };
+            match a.cmp(&b) {
+                Ordering::Equal => {}
+                non_eq => return non_eq,
+            }
+        }
+        self.length.cmp(&other.length)
+    }
+}
+
+impl<T: Eq> Eq for Array<T> {}
+
+unsafe impl<T> Send for Array<T> {}
 
 impl<T> Default for Array<T> {
     fn default() -> Self {
@@ -69,6 +172,39 @@ impl<T> Array<T> {
             ptr,
             capacity,
             length,
+        }
+    }
+
+    pub fn init<S>(sequence: S) -> Self
+    where
+        T: Clone,
+        S: Sequence<Element = T> + PartialEq,
+    {
+        let mut iter = sequence.iter();
+        let mut count = 0;
+
+        while iter.next().is_some() {
+            count += 1;
+        }
+
+        let layout = Layout::array::<T>(count).expect("Invalid layout");
+        let ptr = unsafe { alloc(layout).cast::<T>() };
+        let non_null_ptr = NonNull::new(ptr).expect("Failed to allocate memory");
+
+        let iter = sequence.iter();
+        let mut index = 0;
+
+        unsafe {
+            for element in iter {
+                ptr::write(non_null_ptr.as_ptr().add(index), element.clone());
+                index += 1;
+            }
+        }
+
+        Self {
+            ptr: non_null_ptr,
+            capacity: count,
+            length: count,
         }
     }
 
@@ -154,7 +290,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
@@ -196,7 +332,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
@@ -263,7 +399,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(10);
@@ -294,7 +430,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
@@ -319,7 +455,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
@@ -348,7 +484,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
@@ -370,7 +506,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
@@ -407,7 +543,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(10);
@@ -467,7 +603,7 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
-    /// use foundation::collections::array::Array;
+    /// use foundation::collections::Array;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
@@ -539,7 +675,7 @@ impl<T> Array<T> {
 
     pub fn last_index_where<F>(&self, predicate: F) -> Option<usize>
     where
-        F: Fn(&T) -> bool, // The predicate takes a reference to an element and returns a bool
+        F: Fn(&T) -> bool,
     {
         (0..self.length).rev().find(|&i| predicate(&self[i]))
     }
@@ -756,8 +892,75 @@ impl<T> Array<T> {
     }
 }
 
+impl<T> Sequence for Array<T>
+where
+    T: Clone + PartialEq,
+{
+    type Element = T;
+
+    type Iterator = IndexingIterator<Self>;
+
+    fn iter(&self) -> Self::Iterator {
+        IndexingIterator::new(self.clone())
+    }
+
+    fn underestimated_count(&self) -> usize {
+        self.length
+    }
+}
+
+impl<T> Collection for Array<T>
+where
+    T: Clone + PartialEq,
+{
+    type Index = usize;
+
+    type Indices = DefaultIndices<Self>;
+
+    type SubSequence = ArraySlice<T>;
+
+    fn start_index(&self) -> Self::Index {
+        0
+    }
+
+    fn end_index(&self) -> Self::Index {
+        self.length
+    }
+
+    fn index_after(&self, after: Self::Index) -> Option<Self::Element> {
+        self.iter().nth(after).cloned()
+    }
+
+    fn count(&self) -> usize {
+        self.length
+    }
+
+    fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
+    fn index_offset_by(&self, index: Self::Index, offset_by: usize) -> Self::Index {
+        let new_index = index.saturating_add(offset_by);
+        new_index.min(self.end_index())
+    }
+
+    fn index_offset_by_limited_by(
+        &self,
+        index: Self::Index,
+        offset_by: usize,
+        limited_by: Self::Index,
+    ) -> Option<Self::Index> {
+        let new_index = index.saturating_add(offset_by);
+        if new_index <= limited_by && new_index < self.end_index() {
+            Some(new_index)
+        } else {
+            None
+        }
+    }
+}
+
 impl<'a, T: 'a> Sequence for &'a Array<T> {
-    type Item = &'a T;
+    type Element = &'a T;
     type Iterator = core::slice::Iter<'a, T>;
 
     fn iter(&self) -> Self::Iterator {
@@ -798,20 +1001,12 @@ impl<T> FromIterator<T> for Array<T> {
     }
 }
 
-impl<T> IntoIterator for Array<T> {
+impl<T: Clone + PartialEq> IntoIterator for Array<T> {
     type Item = T;
-    type IntoIter = Iter<T>;
+    type IntoIter = IndexingIterator<Self>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let iter = Iter {
-            ptr: self.ptr,
-            capacity: self.capacity,
-            start: 0,
-            end: self.length,
-        };
-
-        core::mem::forget(self);
-        iter
+        IndexingIterator::new(self)
     }
 }
 
@@ -849,21 +1044,243 @@ impl<T> Drop for Array<T> {
 
 #[macro_export]
 macro_rules! array {
-    ($($elem:expr),* $(,)?) => {{
-        let mut arr = $crate::collections::array::Array::default();
-        $(arr.append($elem);)*
-        arr
-    }};
+    () => (
+        $crate::collections::Array::default()
+    );
 
-    ($elem:expr; $count:expr) => {{
-        let arr = $crate::collections::array::Array::repeating($elem, $count);
+    ($elem:expr; $count:expr) => {
+        $crate::collections::Array::repeating($elem, $count)
+    };
+
+    ($($elem:expr),* $(,)?) => {{
+        let mut arr = $crate::collections::Array::default();
+        $(arr.append($elem);)*
         arr
     }};
 }
 
+#[derive(Debug)]
+pub struct ArraySlice<T> {
+    ptr: NonNull<T>,
+    len: usize,
+    capacity: usize,
+}
+
+impl<T: Clone> Clone for ArraySlice<T> {
+    fn clone(&self) -> Self {
+        let mut slice = Self::new(self.capacity);
+        for i in 0..self.len {
+            let value = unsafe { &*self.ptr.as_ptr().add(i) };
+            slice.insert(value.clone(), slice.len);
+        }
+        slice
+    }
+}
+
+impl<T> ArraySlice<T> {
+    pub fn new(capacity: usize) -> Self {
+        assert!(capacity > 0, "Capacity must be greater than zero");
+        let layout = Layout::array::<T>(capacity).expect("Invalid layout");
+
+        unsafe {
+            let ptr = alloc(layout).cast::<T>();
+            assert!(!ptr.is_null(), "Failed to allocate memory");
+            Self {
+                ptr: NonNull::new(ptr).expect("Failed to create NonNull"),
+                len: 0,
+                capacity,
+            }
+        }
+    }
+
+    pub fn insert(&mut self, element: T, at: usize) {
+        assert!((at <= self.len), "Index out of bounds");
+
+        unsafe {
+            ptr::copy(
+                self.ptr.as_ptr().add(at),
+                self.ptr.as_ptr().add(at + 1),
+                self.len - at,
+            );
+            ptr::write(self.ptr.as_ptr().add(at), element);
+            self.len += 1;
+        }
+    }
+
+    pub fn remove(&mut self, at: usize) -> T {
+        assert!((at < self.len), "Index out of bounds");
+
+        unsafe {
+            let removed = ptr::read(self.ptr.as_ptr().add(at));
+            ptr::copy(
+                self.ptr.as_ptr().add(at + 1),
+                self.ptr.as_ptr().add(at),
+                self.len - at - 1,
+            );
+            self.len -= 1;
+            removed
+        }
+    }
+
+    #[must_use]
+    pub const fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn reserve_capacity(&mut self, additional: usize) {
+        let new_capacity = self.capacity + additional;
+        let new_layout = Layout::array::<T>(new_capacity).expect("Invalid layout");
+        let old_layout = Layout::array::<T>(self.capacity).expect("Invalid layout");
+
+        unsafe {
+            let new_ptr = alloc(new_layout).cast::<T>();
+            assert!(!new_ptr.is_null(), "Failed to allocate memory");
+
+            ptr::copy_nonoverlapping(self.ptr.as_ptr(), new_ptr, self.len);
+            dealloc(self.ptr.as_ptr().cast::<u8>(), old_layout);
+
+            self.ptr = NonNull::new(new_ptr).expect("Failed to update NonNull");
+            self.capacity = new_capacity;
+        }
+    }
+}
+
+impl<T> Index<usize> for ArraySlice<T> {
+    type Output = T;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        assert!((idx < self.len), "Index out of bounds");
+        unsafe { &*self.ptr.as_ptr().add(idx) }
+    }
+}
+
+impl<T> IndexMut<usize> for ArraySlice<T> {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        assert!((idx < self.len), "Index out of bounds");
+        unsafe { &mut *self.ptr.as_ptr().add(idx) }
+    }
+}
+
+impl<T> Sequence for ArraySlice<T>
+where
+    T: Clone,
+{
+    type Element = T;
+
+    type Iterator = IndexingIterator<Self>;
+
+    fn iter(&self) -> Self::Iterator {
+        IndexingIterator::new(self.clone())
+    }
+
+    fn underestimated_count(&self) -> usize {
+        self.len
+    }
+}
+
+impl<T> Collection for ArraySlice<T>
+where
+    T: Clone,
+{
+    type Index = usize;
+
+    type Indices = DefaultIndices<Self>;
+
+    type SubSequence = ArraySlice<Self>;
+
+    fn start_index(&self) -> Self::Index {
+        0
+    }
+
+    fn end_index(&self) -> Self::Index {
+        self.len
+    }
+
+    fn index_after(&self, i: Self::Index) -> Option<Self::Element> {
+        if i < self.len {
+            Some(self[i].clone())
+        } else {
+            None
+        }
+    }
+
+    fn count(&self) -> usize {
+        self.len
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    fn index_offset_by(&self, index: Self::Index, offset_by: usize) -> Self::Index {
+        let new_index = index.saturating_add(offset_by);
+        new_index.min(self.end_index())
+    }
+
+    fn index_offset_by_limited_by(
+        &self,
+        index: Self::Index,
+        offset_by: usize,
+        limited_by: Self::Index,
+    ) -> Option<Self::Index> {
+        let new_index = index.saturating_add(offset_by);
+        if new_index <= limited_by && new_index < self.end_index() {
+            Some(new_index)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T: Clone> Iterator for ArraySlice<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let index = self.start_index();
+        if index < self.end_index() {
+            let item = self.index_after(index);
+            self.index_offset_by(index, 1);
+            item
+        } else {
+            None
+        }
+    }
+}
+
+// Manual memory cleanup
+impl<T> Drop for ArraySlice<T> {
+    fn drop(&mut self) {
+        unsafe {
+            for i in 0..self.len {
+                ptr::drop_in_place(self.ptr.as_ptr().add(i));
+            }
+
+            if self.capacity > 0 {
+                let layout = Layout::array::<T>(self.capacity).expect("Invalid layout");
+                dealloc(self.ptr.as_ptr().cast::<u8>(), layout);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::collections::array::Array;
+    use core::ptr;
+
+    use alloc::vec::Vec;
+
+    use crate::collections::{ArraySlice, array::Array};
+
+    #[test]
+    fn test_empty_array() {
+        let array: Array<i32> = Array::with_uninitialized(0, |_, _| {});
+        assert_eq!(array.capacity, 0);
+        assert_eq!(array.length, 0);
+    }
 
     #[test]
     fn test_default_array() {
@@ -871,6 +1288,39 @@ mod tests {
         assert_eq!(arr.count(), 0);
         assert_eq!(arr.capacity(), 4);
         assert!(arr.is_empty());
+    }
+
+    #[test]
+    fn test_array_from_initializer() {
+        let values = [1, 2, 3, 4, 5];
+        let array = Array::with_uninitialized(values.len(), |dst: *mut i32, len| unsafe {
+            for (i, v) in values.iter().enumerate() {
+                ptr::write(dst.add(i), *v);
+                *len += 1;
+            }
+        });
+
+        assert_eq!(array.length, values.len());
+        for (i, value) in values.iter().enumerate() {
+            assert_eq!(unsafe { *array.ptr.as_ptr().add(i) }, *value);
+        }
+    }
+
+    #[test]
+    fn test_array_clone() {
+        let values = [10, 20, 30];
+        let array = Array::with_uninitialized(values.len(), |dst: *mut i32, len| unsafe {
+            for (i, v) in values.iter().enumerate() {
+                ptr::write(dst.add(i), *v);
+                *len += 1;
+            }
+        });
+
+        let clone = array.clone();
+        assert_eq!(array, clone);
+
+        // Ensure data is copied, not shared
+        assert_ne!(array.ptr, clone.ptr);
     }
 
     #[test]
@@ -883,6 +1333,25 @@ mod tests {
         assert_eq!(arr[0], 10);
         assert_eq!(arr[1], 20);
         assert_eq!(arr[2], 30);
+    }
+
+    #[test]
+    fn test_array_equality() {
+        let a = Array::with_uninitialized(3, |dst: *mut i32, len| unsafe {
+            for (i, v) in [1, 2, 3].iter().enumerate() {
+                dst.add(i).write(*v);
+                *len += 1;
+            }
+        });
+
+        let b = Array::with_uninitialized(3, |dst: *mut i32, len| unsafe {
+            for (i, v) in [1, 2, 3].iter().enumerate() {
+                dst.add(i).write(*v);
+                *len += 1;
+            }
+        });
+
+        assert_eq!(a, b);
     }
 
     #[test]
@@ -996,5 +1465,98 @@ mod tests {
         arr.remove_all_with_capacity(false);
         assert_eq!(arr.count(), 0);
         assert_eq!(arr.capacity(), 0);
+    }
+
+    #[test]
+    fn test_array_drop_safety() {
+        use alloc::rc::Rc;
+        use core::cell::RefCell;
+
+        struct Tracker(Rc<RefCell<usize>>);
+
+        impl Drop for Tracker {
+            fn drop(&mut self) {
+                *self.0.borrow_mut() += 1;
+            }
+        }
+
+        let drop_count = Rc::new(RefCell::new(0));
+
+        {
+            let trackers: Vec<Tracker> = (0..5).map(|_| Tracker(drop_count.clone())).collect();
+            let _array =
+                Array::with_uninitialized(trackers.len(), |dst: *mut Tracker, len| unsafe {
+                    for (i, tracker) in trackers.into_iter().enumerate() {
+                        dst.add(i).write(tracker);
+                        *len += 1;
+                    }
+                });
+        }
+
+        assert_eq!(*drop_count.borrow(), 5);
+    }
+
+    #[test]
+    fn arrayslice_creates_new_slice_with_specified_capacity() {
+        let slice = ArraySlice::<i32>::new(5);
+        assert_eq!(slice.capacity(), 5);
+    }
+
+    #[test]
+    fn arrayslice_inserts_element_at_start() {
+        let mut slice = ArraySlice::new(3);
+        slice.insert(10, 0);
+        assert_eq!(slice[0], 10);
+    }
+
+    #[test]
+    fn arrayslice_inserts_element_in_middle() {
+        let mut slice = ArraySlice::new(3);
+        slice.insert(1, 0);
+        slice.insert(3, 1);
+        slice.insert(2, 1);
+        assert_eq!(slice[0], 1);
+        assert_eq!(slice[1], 2);
+        assert_eq!(slice[2], 3);
+    }
+
+    #[test]
+    fn arrayslice_removes_element_and_shifts_remaining() {
+        let mut slice = ArraySlice::new(3);
+        slice.insert(100, 0);
+        slice.insert(200, 1);
+        slice.insert(300, 2);
+        let removed = slice.remove(1);
+        assert_eq!(removed, 200);
+        assert_eq!(slice[0], 100);
+        assert_eq!(slice[1], 300);
+    }
+
+    #[test]
+    fn arrayslice_clones_correctly() {
+        let mut slice = ArraySlice::new(2);
+        slice.insert(5, 0);
+        slice.insert(6, 1);
+        let clone = slice.clone();
+        assert_eq!(clone[0], 5);
+        assert_eq!(clone[1], 6);
+    }
+
+    #[test]
+    fn arrayslice_reserves_additional_capacity() {
+        let mut slice = ArraySlice::new(2);
+        slice.insert(1, 0);
+        let old_capacity = slice.capacity();
+        slice.reserve_capacity(3);
+        let new_capacity = slice.capacity();
+        assert!(new_capacity > old_capacity);
+        assert_eq!(slice[0], 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Index out of bounds")]
+    fn arrayslice_panics_on_out_of_bounds_insert() {
+        let mut slice = ArraySlice::<i32>::new(1);
+        slice.insert(99, 2);
     }
 }
