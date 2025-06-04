@@ -1,4 +1,4 @@
-use foundation::{array, collections::Sequence};
+use foundation::{array, collections::Sequence, rt::NSArray};
 
 fn main() {
     let s = array![1, 2, 3];

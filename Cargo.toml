@@ -1,7 +1,13 @@
 [workspace]
-members = ["foundation"]
+members = ["foundation", "rust_class_derive"]
 resolver = "3"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+
+[workspace.dependencies]
+quote = "1.0"
+syn = "2.0.101"
+proc-macro2 = "1.0"
+rust_class_derive = { path = "rust_class_derive" }

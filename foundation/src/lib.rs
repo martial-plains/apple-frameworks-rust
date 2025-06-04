@@ -19,10 +19,11 @@
     missing_docs
 )]
 #![debugger_visualizer(natvis_file = "../.natvis")]
-#![feature(associated_type_defaults, new_range_api)]
+#![feature(associated_type_defaults, new_range_api, default_field_values)]
 
 extern crate alloc;
 
 pub mod collections;
 pub mod errors;
 pub mod num;
+pub mod rt;
