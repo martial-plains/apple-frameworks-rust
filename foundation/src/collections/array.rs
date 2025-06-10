@@ -51,6 +51,8 @@ use crate::collections::{Collection, DefaultIndices, Sequence};
 
 use super::sequences::IndexingIterator;
 
+pub type InlineArray<const COUNT: usize, T> = [T; COUNT];
+
 #[derive(Debug)]
 pub struct Array<T> {
     ptr: NonNull<T>,
