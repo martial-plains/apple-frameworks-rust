@@ -63,32 +63,33 @@ impl SystemRandomNumberGenerator {
     /// rng.fill_bytes(&mut data);
     /// ```
     pub fn fill_bytes(&self, buf: &mut [u8]) {
-        #[cfg(target_os = "windows")]
-        unsafe {
-            use core::ptr::null_mut;
-            use windows_sys::Win32::Security::Cryptography::{
-                BCRYPT_USE_SYSTEM_PREFERRED_RNG, BCryptGenRandom,
-            };
+        cfg_select! {
+            target_os = "macos" => {
+                unsafe {
+                    use libc::arc4random_buf;
+                    arc4random_buf(buf.as_mut_ptr().cast(), buf.len());
+                }
+            }
 
-            let status = BCryptGenRandom(
-                null_mut(),
-                buf.as_mut_ptr(),
-                buf.len() as u32,
-                BCRYPT_USE_SYSTEM_PREFERRED_RNG,
-            );
+            target_os = "windows" => {
+                unsafe {
+                    use core::ptr::null_mut;
+                    use windows_sys::Win32::Security::Cryptography::{
+                        BCRYPT_USE_SYSTEM_PREFERRED_RNG, BCryptGenRandom,
+                    };
 
-            assert!(
-                (status == 0),
-                "BCryptGenRandom failed with status: 0x{status:X}"
-            );
-        }
+                    let status = BCryptGenRandom(
+                        null_mut(),
+                        buf.as_mut_ptr(),
+                        buf.len() as u32,
+                        BCRYPT_USE_SYSTEM_PREFERRED_RNG,
+                    );
 
-        #[cfg(target_os = "macos")]
-        {
-            unsafe {
-                use libc::arc4random_buf;
-
-                arc4random_buf(buf.as_mut_ptr().cast(), buf.len());
+                    assert!(
+                        (status == 0),
+                        "BCryptGenRandom failed with status: 0x{status:X}"
+                    );
+                }
             }
         }
     }

@@ -19,7 +19,7 @@
     missing_docs
 )]
 #![debugger_visualizer(natvis_file = "../.natvis")]
-#![feature(associated_type_defaults, new_range_api)]
+#![feature(associated_type_defaults, cfg_select, new_range_api)]
 
 extern crate alloc;
 
