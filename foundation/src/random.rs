@@ -1,18 +1,31 @@
+use libc::{c_int, c_uint, getrandom};
+
 use crate::{num::traits::BinaryInteger, traits::RandomNumberGenerator};
 
-/// A system-based random number generator using platform-specific APIs.
+/// A system-based cryptographically secure random number generator.
 ///
-/// `SystemRandomNumberGenerator` provides a cryptographically secure source
-/// of randomness using the operating system's facilities.
+/// `SystemRandomNumberGenerator` utilizes operating system facilities to generate
+/// high-quality, cryptographically secure random bytes. It abstracts over the
+/// underlying platform details while providing a consistent API.
 ///
-/// - On **macOS**, it uses `arc4random_buf` to securely fill a buffer.
-/// - On **Windows**, it uses `BCryptGenRandom` with the system-preferred RNG.
-/// - On unsupported platforms, this generator currently does nothing (no-op).
+/// ## Platform Behavior
 ///
-/// This struct is designed to be simple and safe, abstracting away
-/// the complexity of platform-specific random number generation.
+/// | Platform | Source               | Status       |
+/// |----------|----------------------|--------------|
+/// | **macOS**    | `arc4random_buf`       | ✅ Supported |
+/// | **Windows**  | `BCryptGenRandom`      | ✅ Supported |
+/// | **Linux**    | `getrandom` or `/dev/urandom` | ✅ Supported |
+/// | **Others**   | *(none)*               | ❌ Unsupported (panics) |
 ///
-/// # Examples
+/// ## Panics
+///
+/// This method will panic in the following cases:
+///
+/// - On **Windows**, if `BCryptGenRandom` fails.
+/// - On **Linux**, if both `getrandom` and `/dev/urandom` are unavailable.
+/// - On **unsupported platforms**, where no secure RNG is implemented.
+///
+/// ## Examples
 ///
 /// ```
 /// use foundation::random::SystemRandomNumberGenerator;
@@ -22,18 +35,6 @@ use crate::{num::traits::BinaryInteger, traits::RandomNumberGenerator};
 /// rng.fill_bytes(&mut buffer);
 /// println!("Random bytes: {:?}", buffer);
 /// ```
-///
-/// # Platform Support
-///
-/// | Platform | Source             | Status      |
-/// |----------|--------------------|-------------|
-/// | macOS    | `arc4random_buf`   | ✅ Supported |
-/// | Windows  | `BCryptGenRandom`  | ✅ Supported |
-/// | Others   | *(none)*           | ⚠️ No-op     |
-///
-/// # Panics
-///
-/// - On **Windows**, this method will panic if `BCryptGenRandom` fails.
 #[derive(Debug, Clone, Copy)]
 pub struct SystemRandomNumberGenerator;
 
@@ -44,16 +45,24 @@ impl SystemRandomNumberGenerator {
         Self
     }
 
-    /// Fills the given buffer with random bytes using the system's RNG.
+    /// Fills the given buffer with cryptographically secure random bytes using the system RNG.
     ///
-    /// On macOS, this uses `arc4random_buf` to securely fill the buffer.
-    /// On other platforms, this function currently does nothing.
+    /// - On **macOS**, uses `arc4random_buf`.
+    /// - On **Windows**, uses `BCryptGenRandom`.
+    /// - On **Linux**, attempts `getrandom` syscall, falls back to `/dev/urandom` if necessary.
+    /// - On other platforms, this will panic.
     ///
-    /// # Parameters
+    /// ## Parameters
     ///
-    /// - `buf`: A mutable byte slice to fill with random data.
+    /// - `buf`: A mutable slice that will be filled with random data.
     ///
-    /// # Examples
+    /// ## Panics
+    ///
+    /// - On Linux, if both `getrandom` and `/dev/urandom` are unavailable or fail.
+    /// - On Windows, if `BCryptGenRandom` returns a failure status.
+    /// - On unsupported platforms.
+    ///
+    /// ## Examples
     ///
     /// ```
     /// use foundation::random::SystemRandomNumberGenerator;
@@ -64,6 +73,35 @@ impl SystemRandomNumberGenerator {
     /// ```
     pub fn fill_bytes(&self, buf: &mut [u8]) {
         cfg_select! {
+            target_os = "linux" => {
+                const GRND_NONBLOCK: c_uint = 0x0001;
+                const ENOSYS: c_int = 38;
+
+                let mut filled = 0;
+                while filled < buf.len() {
+                    let result = unsafe { getrandom(buf[filled..].as_mut_ptr().cast(), buf.len() - filled, GRND_NONBLOCK) };
+                    if result < 0 {
+                        let err = unsafe { *libc::__errno_location() };
+                        if err == ENOSYS {
+                            let fd = unsafe { libc::open(c"/dev/urandom".as_ptr(), libc::O_RDONLY) };
+                            if fd < 0 {
+                                panic!("Failed to open /dev/urandom");
+                            }
+                            let read_result = unsafe { libc::read(fd, buf[filled..].as_mut_ptr().cast(), buf.len() - filled) };
+                            if read_result < 0 {
+                                panic!("Failed to read from /dev/urandom");
+                            }
+                            filled += read_result as usize;
+                            unsafe { libc::close(fd) };
+                        } else {
+                            panic!("getrandom failed with error: {}", err);
+                        }
+                    } else {
+                        filled += result as usize;
+                    }
+                }
+            }
+
             target_os = "macos" => {
                 unsafe {
                     use libc::arc4random_buf;
@@ -90,6 +128,10 @@ impl SystemRandomNumberGenerator {
                         "BCryptGenRandom failed with status: 0x{status:X}"
                     );
                 }
+            }
+
+            _ => {
+                panic!("SystemRandomNumberGenerator is not supported on this platform. Please implement a custom RNG or use a different one.");
             }
         }
     }

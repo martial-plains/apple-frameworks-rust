@@ -26,5 +26,9 @@ extern crate alloc;
 pub mod collections;
 pub mod errors;
 pub mod num;
-pub mod random;
-pub mod traits;
+
+mod random;
+mod traits;
+
+pub use random::*;
+pub use traits::*;
