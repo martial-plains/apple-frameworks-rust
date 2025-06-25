@@ -3,7 +3,7 @@ use crate::{
     errors::Result::{self},
 };
 
-// A struct representing the PrefixSequence, which limits the number of elements from the base iterator.
+/// A struct representing the `PrefixSequence`, which limits the number of elements from the base iterator.
 #[derive(Debug, Clone, Copy)]
 pub struct PrefixSequence<Base> {
     base: Base,
