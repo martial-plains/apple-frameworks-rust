@@ -2,6 +2,16 @@ use core::ops::Index;
 
 use crate::collections::{Collection, IndexingIterator, Sequence};
 
+/// Represents a range of indices within a collection.
+///
+/// `DefaultIndices` encapsulates a start and end index defining a half-open
+/// range (`[start, end)`) over a given collection. It owns the collection and
+/// provides utility methods to work with the index range.
+///
+/// # Type parameters
+///
+/// - `C`: The type of the underlying collection, which must implement
+///        the `Collection` trait.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefaultIndices<C: Collection> {
     collection: C,
@@ -10,6 +20,17 @@ pub struct DefaultIndices<C: Collection> {
 }
 
 impl<C: Collection> DefaultIndices<C> {
+    /// Creates a new `DefaultIndices` with the given collection and range bounds.
+    ///
+    /// # Parameters
+    ///
+    /// - `collection`: The collection to own.
+    /// - `start`: The start index (inclusive) of the range.
+    /// - `end`: The end index (exclusive) of the range.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `DefaultIndices`.
     pub const fn new(collection: C, start: C::Index, end: C::Index) -> Self {
         Self {
             collection,
@@ -18,10 +39,24 @@ impl<C: Collection> DefaultIndices<C> {
         }
     }
 
+    /// Checks whether the specified index lies within the range `[start, end)`.
+    ///
+    /// # Parameters
+    ///
+    /// - `index`: The index to check.
+    ///
+    /// # Returns
+    ///
+    /// `true` if `index` is within the range, `false` otherwise.
     pub fn contains(&self, index: C::Index) -> bool {
         index >= self.start && index < self.end
     }
 
+    /// Returns the range `[start, end)` represented by this `DefaultIndices`.
+    ///
+    /// # Returns
+    ///
+    /// A `core::ops::Range` from `start` (inclusive) to `end` (exclusive).
     pub const fn range(&self) -> core::ops::Range<C::Index> {
         self.start..self.end
     }

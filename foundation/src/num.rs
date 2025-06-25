@@ -1,3 +1,5 @@
+//! Numeric value abstraction for interoperable Foundation-style APIs.
+
 #![allow(clippy::pedantic)]
 
 use core::{fmt, str::FromStr};
@@ -6,22 +8,37 @@ use alloc::string::String;
 
 pub mod traits;
 
+/// A numeric value that can represent various primitive number types.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Number {
+    /// Boolean value (`true` or `false`).
     Bool(bool),
+    /// Signed pointer-sized integer (`isize`).
     Int(isize),
+    /// 8-bit signed integer.
     Int8(i8),
+    /// 16-bit signed integer.
     Int16(i16),
+    /// 32-bit signed integer.
     Int32(i32),
+    /// Unsigned pointer-sized integer (`usize`).
     UInt(usize),
+    /// 8-bit unsigned integer.
     UInt8(u8),
+    /// 16-bit unsigned integer.
     UInt16(u16),
+    /// 32-bit unsigned integer.
     UInt32(u32),
+    /// 32-bit unsigned integer.
     Float(f32),
+    /// 64-bit floating point number (`f64`).
     Double(f64),
 }
 
 impl Number {
+    /// Returns the value as a boolean.
+    ///
+    /// Non-zero values are treated as `true`; zero is `false`.
     #[must_use]
     pub const fn bool(&self) -> bool {
         match self {
@@ -39,6 +56,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as an `isize`, using lossy conversion if necessary.
     #[must_use]
     pub fn int(&self) -> isize {
         match self {
@@ -56,6 +74,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as an `i8`, using lossy conversion if necessary.
     #[must_use]
     pub const fn int8(&self) -> i8 {
         match self {
@@ -73,6 +92,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as an `i16`, using lossy conversion if necessary.
     #[must_use]
     pub const fn int16(&self) -> i16 {
         match self {
@@ -90,6 +110,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as an `i32`, using lossy conversion if necessary.
     #[must_use]
     pub const fn int32(&self) -> i32 {
         match self {
@@ -107,6 +128,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as a `usize`, using lossy conversion if necessary.
     #[must_use]
     pub const fn uint(&self) -> usize {
         match self {
@@ -124,6 +146,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as a `u8`, using lossy conversion if necessary.
     #[must_use]
     pub const fn uint8(&self) -> u8 {
         match self {
@@ -141,6 +164,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as a `u16`, using lossy conversion if necessary.
     #[must_use]
     pub const fn uint16(&self) -> u16 {
         match self {
@@ -158,6 +182,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as a `u32`, using lossy conversion if necessary.
     #[must_use]
     pub const fn uint32(&self) -> u32 {
         match self {
@@ -175,6 +200,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as a `f32`, using lossy conversion if necessary.
     #[must_use]
     pub const fn float(&self) -> f32 {
         match self {
@@ -192,6 +218,7 @@ impl Number {
         }
     }
 
+    /// Returns the value as a `f64`, using lossy conversion if necessary.
     #[must_use]
     pub const fn double(&self) -> f64 {
         match self {

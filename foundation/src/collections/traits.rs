@@ -16,15 +16,31 @@ use crate::{
     errors::Result::{self, Failure, Success},
 };
 
+/// A trait representing a collection of elements with indexed access and sequence behavior.
+///
+/// This trait extends the functionality of a `Sequence` by adding indexed access
+/// (via the `Index` trait), cloning ability, and index manipulation methods.
+/// It is designed to work with collections that have a notion of indices which
+/// can be ordered and copied.
 pub trait Collection:
     Sequence<Iterator = IndexingIterator<Self>> + Index<Self::Index> + Clone
 {
+    /// The type used to index elements in the collection.
     type Index: PartialOrd + Copy;
 
+    /// The type representing a collection of indices.
     type Indices: Collection;
 
+    /// The type representing a contiguous subsequence of this collection.
     type SubSequence: Collection;
 
+    /// Returns the first element in the collection, if any, without removing it.
+    ///
+    /// Returns `None` if the collection is empty.
+    ///
+    /// # Default Implementation
+    ///
+    /// Returns the element at `start_index()` if the collection is not empty.
     fn pop_first(&self) -> Option<Self::Element>
     where
         Self: Index<Self::Index, Output = Self::Element>,
@@ -37,6 +53,11 @@ pub trait Collection:
         }
     }
 
+    /// Returns the first element in the collection by cloning it.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the collection is empty.
     fn remove_first(&self) -> Self::Element
     where
         Self::Element: Clone,
@@ -45,12 +66,18 @@ pub trait Collection:
         self[self.start_index()].clone()
     }
 
+    /// Returns the starting index of the collection.
     fn start_index(&self) -> Self::Index;
 
+    /// Returns the ending index of the collection (one past the last valid index).
     fn end_index(&self) -> Self::Index;
 
+    /// Returns the element immediately after the specified index, if any.
     fn index_after(&self, i: Self::Index) -> Option<Self::Element>;
 
+    /// Modifies the provided index by offsetting it by a given amount.
+    ///
+    /// This method updates `index` in-place by advancing it `offset_by` steps.
     fn form_index_offset_by(&self, index: &mut Self::Index, offset_by: usize)
     where
         Self::Index: Copy,
@@ -58,6 +85,10 @@ pub trait Collection:
         *index = self.index_offset_by(*index, offset_by);
     }
 
+    /// Modifies the provided index by offsetting it by a given amount, bounded by `limited_by`.
+    ///
+    /// Returns `true` if the index was updated and remains less than `limited_by`.
+    /// Returns `false` if the index was already `>= limited_by` and no update occurred.
     fn form_index_offset_by_limited_by(
         &self,
         index: &mut Self::Index,
@@ -77,8 +108,12 @@ pub trait Collection:
         }
     }
 
+    /// Returns the number of elements in the collection.
     fn count(&self) -> usize;
 
+    /// Returns a reference to the first element, if any.
+    ///
+    /// Returns `None` if the collection is empty.
     fn first(&self) -> Option<&Self::Element>
     where
         Self::Index: Copy + PartialOrd,
@@ -91,10 +126,18 @@ pub trait Collection:
         }
     }
 
+    /// Returns `true` if the collection contains no elements.
     fn is_empty(&self) -> bool;
 
+    /// Returns the index offset by a specified number of steps from the given index.
+    ///
+    /// The returned index may be beyond `end_index()`.
     fn index_offset_by(&self, index: Self::Index, offset_by: usize) -> Self::Index;
 
+    /// Returns the index offset by a specified number of steps from the given index,
+    /// limited by a `limited_by` index.
+    ///
+    /// Returns `None` if the offset would exceed `limited_by`.
     fn index_offset_by_limited_by(
         &self,
         index: Self::Index,
@@ -102,6 +145,9 @@ pub trait Collection:
         limited_by: Self::Index,
     ) -> Option<Self::Index>;
 
+    /// Returns the index of the first occurrence of the specified value, if any.
+    ///
+    /// Returns `None` if the value is not found.
     fn index_of(&self, value: Self::Element) -> Option<Self::Index>
     where
         Self::Element: PartialEq,
@@ -117,14 +163,21 @@ pub trait Collection:
     }
 }
 
+/// A trait representing a sequence of elements that can be iterated over.
+///
+/// Provides functionality for querying and operating on sequences using iterators,
+/// including filtering, finding, comparison, and basic slicing.
 pub trait Sequence {
     /// A type representing the sequence’s elements.
     type Element;
 
+    /// The type of iterator used to iterate over the sequence.
     type Iterator: Iterator<Item = Self::Element>;
 
+    /// Returns an iterator over the sequence’s elements.
     fn iter(&self) -> Self::Iterator;
 
+    /// Returns `true` if the sequence contains the given item.
     fn contains(&self, item: &Self::Element) -> bool
     where
         Self::Element: PartialEq,
@@ -132,6 +185,9 @@ pub trait Sequence {
         self.iter().any(|x| x == *item)
     }
 
+    /// Returns `true` if the predicate returns `true` for any element in the sequence.
+    ///
+    /// Stops early on the first match or returns `Success(false)` if no match is found.
     fn contains_where<F>(&self, mut predicate: F) -> Result<bool>
     where
         F: FnMut(Self::Element) -> Result<bool>,
@@ -144,6 +200,9 @@ pub trait Sequence {
         Success(false)
     }
 
+    /// Returns `true` if all elements in the sequence satisfy the given predicate.
+    ///
+    /// Stops early if the predicate returns `false` for any element.
     fn all_satisfy<F>(&self, mut predicate: F) -> Result<bool>
     where
         F: FnMut(Self::Element) -> Result<bool>,
@@ -156,6 +215,9 @@ pub trait Sequence {
         Success(true)
     }
 
+    /// Returns the first element in the sequence that satisfies the given predicate.
+    ///
+    /// Returns `Success(None)` if no matching element is found.
     fn first_where<F>(&self, mut predicate: F) -> Result<Option<Self::Element>>
     where
         F: FnMut(&Self::Element) -> Result<bool>,
@@ -168,6 +230,7 @@ pub trait Sequence {
         Success(None)
     }
 
+    /// Returns the minimum element in the sequence, according to the natural ordering.
     fn min(&self) -> Option<Self::Element>
     where
         Self::Element: Ord,
@@ -175,6 +238,9 @@ pub trait Sequence {
         self.iter().min()
     }
 
+    /// Returns the minimum element in the sequence, using the given comparator function.
+    ///
+    /// Returns `Success(None)` if the sequence is empty.
     fn min_by<F>(&self, compare: F) -> Result<Option<Self::Element>>
     where
         F: Fn(&Self::Element, &Self::Element) -> Result<Ordering>,
@@ -193,6 +259,7 @@ pub trait Sequence {
         Success(min_element)
     }
 
+    /// Returns the maximum element in the sequence, according to the natural ordering.
     fn max(&self) -> Option<Self::Element>
     where
         Self::Element: Ord,
@@ -200,6 +267,9 @@ pub trait Sequence {
         self.iter().max()
     }
 
+    /// Returns the maximum element in the sequence, using the given comparator function.
+    ///
+    /// Returns `Success(None)` if the sequence is empty.
     fn max_by<F>(&self, compare: F) -> Result<Option<Self::Element>>
     where
         F: Fn(&Self::Element, &Self::Element) -> Result<Ordering>,
@@ -218,6 +288,7 @@ pub trait Sequence {
         Success(max_element)
     }
 
+    /// Returns a sequence containing at most `max_len` elements from the start of the sequence.
     fn prefix(self, max_len: usize) -> PrefixSequence<impl Iterator<Item = Self::Element>>
     where
         Self: Sized,
@@ -225,6 +296,9 @@ pub trait Sequence {
         PrefixSequence::new(self.iter(), max_len)
     }
 
+    /// Returns a sequence containing the leading elements that satisfy a predicate.
+    ///
+    /// Iteration stops at the first failure or error returned by the predicate.
     fn prefix_while<F>(&self, mut predicate: F) -> Result<Array<Self::Element>>
     where
         F: FnMut(Self::Element) -> Result<bool>,
@@ -243,6 +317,9 @@ pub trait Sequence {
         Success(result)
     }
 
+    /// Returns the last `n` elements in the sequence.
+    ///
+    /// If `n` is greater than the number of elements, returns the entire sequence.
     fn suffix(&self, n: usize) -> Array<Self::Element>
     where
         Self::Element: Copy,
@@ -256,6 +333,10 @@ pub trait Sequence {
         self.iter().skip(start_index).collect::<Array<_>>()
     }
 
+    /// Returns a new sequence by dropping the first `n` elements.
+    ///
+    /// # Note
+    /// This does **not** modify the original sequence—it returns a new iterator-backed sequence.
     #[must_use]
     fn drop_first(self, n: usize) -> DropFirstSequence<impl Iterator<Item = Self::Element>>
     where
@@ -264,6 +345,9 @@ pub trait Sequence {
         DropFirstSequence::new(self.iter(), n)
     }
 
+    /// Returns a new sequence with the last `k` elements removed.
+    ///
+    /// If `k` is greater than the sequence length, the result will be empty.
     #[must_use]
     fn drop_last(&self, k: usize) -> Array<Self::Element>
     where
@@ -275,6 +359,7 @@ pub trait Sequence {
         Array::from_iter(dropped)
     }
 
+    /// Returns a new sequence containing only elements for which the predicate returns `true`.
     fn filter<F>(&self, mut predicate: F) -> Array<Self::Element>
     where
         F: FnMut(&Self::Element) -> bool,
@@ -283,6 +368,9 @@ pub trait Sequence {
         self.iter().filter(|x| predicate(x)).collect()
     }
 
+    /// Applies a fallible transformation to each element, returning a result.
+    ///
+    /// If any transformation returns a failure, the whole operation fails.
     fn map<T, E, F>(&self, mut f: F) -> Result<Array<T>, E>
     where
         F: FnMut(Self::Element) -> Result<T, E>,
@@ -299,6 +387,7 @@ pub trait Sequence {
         Success(result)
     }
 
+    /// Applies a transformation that returns `Option<B>` and collects non-`None` results.
     fn compact_map<B, F>(&self, f: F) -> Array<B>
     where
         F: FnMut(Self::Element) -> Option<B>,
@@ -306,6 +395,7 @@ pub trait Sequence {
         self.iter().filter_map(f).collect()
     }
 
+    /// Applies a transformation to each element that returns an iterator, and flattens the results.
     fn flat_map<B, I, F>(&self, f: F) -> Array<B>
     where
         F: FnMut(Self::Element) -> I,
@@ -314,6 +404,7 @@ pub trait Sequence {
         self.iter().flat_map(f).collect()
     }
 
+    /// Reduces the sequence to a single value using an initial accumulator and a combining function.
     fn reduce<B, F>(&self, init: B, f: F) -> B
     where
         F: FnMut(B, Self::Element) -> B,
@@ -321,6 +412,7 @@ pub trait Sequence {
         self.iter().fold(init, f)
     }
 
+    /// Applies the given function to each element in the sequence for side effects.
     fn for_each<F>(&self, mut f: F)
     where
         F: FnMut(Self::Element),
@@ -330,6 +422,7 @@ pub trait Sequence {
         }
     }
 
+    /// Returns an enumerated sequence, pairing each element with its index.
     fn enumerated(self) -> EnumeratedSequence<Self>
     where
         Self: Sized,
@@ -337,8 +430,10 @@ pub trait Sequence {
         EnumeratedSequence::new(self)
     }
 
+    /// A value less than or equal to the number of elements in the sequence, calculated non-destructively.
     fn underestimated_count(&self) -> usize;
 
+    /// Returns a new sequence with the elements in reverse order.
     fn reversed(&self) -> Array<Self::Element>
     where
         Self::Element: Clone,
@@ -353,6 +448,9 @@ pub trait Sequence {
         reversed_array
     }
 
+    /// Returns a sorted version of the sequence, using natural ordering.
+    ///
+    /// Internally uses a TimSort-like hybrid of insertion sort and merge sort.
     fn sorted(&self) -> Array<Self::Element>
     where
         Self::Element: Ord + Copy + Default,
@@ -442,6 +540,9 @@ pub trait Sequence {
         arr
     }
 
+    /// Returns a sorted version of the sequence, using a custom comparator.
+    ///
+    /// Internally uses a TimSort-like hybrid sort algorithm.
     fn sorted_by<F>(&self, mut cmp: F) -> Array<Self::Element>
     where
         Self::Element: Copy + Default,
@@ -537,6 +638,9 @@ pub trait Sequence {
         arr
     }
 
+    /// Counts the number of elements for which the predicate returns `true`.
+    ///
+    /// If any predicate call fails, returns the error.
     fn count_where<F>(&self, mut predicate: F) -> Result<usize>
     where
         F: FnMut(Self::Element) -> Result<bool>,

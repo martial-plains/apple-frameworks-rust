@@ -15,6 +15,8 @@ impl<Base> PrefixSequence<Base>
 where
     Base: Iterator,
 {
+    /// Creates a new `PrefixSequence` wrapping the given base iterator,
+    /// yielding at most `n` elements.
     pub const fn new(base: Base, n: usize) -> Self {
         Self {
             base,
@@ -40,6 +42,8 @@ where
     }
 }
 
+/// A struct representing a sequence that enumerates elements from a base sequence,
+/// producing `(index, element)` pairs.
 #[derive(Debug, Clone, Copy)]
 pub struct EnumeratedSequence<Base>
 where
@@ -53,6 +57,8 @@ impl<Base> EnumeratedSequence<Base>
 where
     Base: Sequence,
 {
+    /// Creates a new `EnumeratedSequence` from a base sequence,
+    /// which yields pairs of `(index, element)` from the underlying sequence.
     pub fn new(base: Base) -> Self {
         Self {
             iter: base.iter(),
@@ -76,6 +82,7 @@ where
     }
 }
 
+/// A struct representing a sequence that drops the first `n` elements from the base iterator.
 #[derive(Debug, Clone, Copy)]
 pub struct DropFirstSequence<Base> {
     base: Base,
@@ -86,10 +93,12 @@ impl<Base> DropFirstSequence<Base>
 where
     Base: Iterator,
 {
+    /// Creates a new `DropFirstSequence` that drops the first `dropping` elements from the base iterator.
     pub const fn new(base: Base, dropping: usize) -> Self {
         Self { base, dropping }
     }
 
+    /// Returns a new `DropFirstSequence` that will drop the first `n` elements.
     #[must_use]
     pub fn drop_first(self, n: usize) -> Self {
         Self::new(self.base, n)
@@ -111,6 +120,8 @@ where
     }
 }
 
+/// A struct representing a sequence that drops elements from the base iterator
+/// while a predicate holds true, then yields the rest.
 #[derive(Debug)]
 pub struct DropWhileSequence<Base, F> {
     base: Base,
@@ -123,6 +134,8 @@ where
     Base: Iterator,
     F: FnMut(&Base::Item) -> Result<bool>,
 {
+    /// Creates a new `DropWhileSequence` that skips elements from the base iterator
+    /// while the predicate returns `true`.
     pub const fn new(base: Base, predicate: F) -> Self {
         Self {
             base,
@@ -156,6 +169,8 @@ where
     }
 }
 
+/// A struct representing an iterator over a collection, which uses
+/// the collection's indexing to iterate elements.
 #[derive(Debug, Clone, Copy)]
 pub struct IndexingIterator<C>
 where
@@ -169,6 +184,7 @@ impl<C> IndexingIterator<C>
 where
     C: Collection,
 {
+    /// Creates a new `IndexingIterator` starting from the collection's start index.
     pub fn new(base: C) -> Self where {
         let current_index = base.start_index();
         Self {

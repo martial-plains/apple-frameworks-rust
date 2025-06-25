@@ -51,8 +51,27 @@ use crate::collections::{Collection, DefaultIndices, Sequence};
 
 use super::sequences::IndexingIterator;
 
+/// A fixed-size inline array type alias.
+///
+/// This is simply a type alias for a fixed-size array `[T; COUNT]`.
+/// It is useful when you want to express an array with a compile-time constant size.
+///
+/// # Type Parameters
+/// - `COUNT`: The number of elements in the array (a compile-time constant).
+/// - `T`: The element type stored in the array.
 pub type InlineArray<const COUNT: usize, T> = [T; COUNT];
 
+/// A dynamically sized array with manual memory management.
+///
+/// This struct represents a growable array that keeps track of a pointer to the elements,
+/// the current capacity (how many elements it can hold without reallocating),
+/// and the current length (how many elements are initialized).
+///
+/// It uses a `NonNull<T>` pointer internally to manage the buffer safely without
+/// allowing null pointers.
+///
+/// # Type Parameters
+/// - `T`: The element type stored in the array.
 #[derive(Debug)]
 pub struct Array<T> {
     ptr: NonNull<T>,
@@ -177,6 +196,21 @@ impl<T> Array<T> {
         }
     }
 
+    /// Initializes a new `Array` from a sequence of elements.
+    ///
+    /// Allocates enough memory to hold all elements of the given sequence,
+    /// clones each element into the newly allocated memory, and returns
+    /// an `Array` owning that memory.
+    ///
+    /// # Type Parameters
+    /// - `S`: A sequence type that yields elements of type `T` and supports partial equality.
+    ///
+    /// # Panics
+    /// - If the memory layout for the allocation is invalid.
+    /// - If memory allocation fails.
+    ///
+    /// # Safety
+    /// This function uses unsafe memory allocation and writes elements via raw pointers.
     pub fn init<S>(sequence: S) -> Self
     where
         T: Clone,
@@ -210,14 +244,29 @@ impl<T> Array<T> {
         }
     }
 
+    /// Returns an iterator over immutable references to the elements.
+    ///
+    /// Allows read-only traversal of the array contents.
     pub fn iter(&self) -> core::slice::Iter<'_, T> {
         self.into_iter()
     }
 
+    /// Returns an iterator over mutable references to the elements.
+    ///
+    /// Allows modifying elements in place.
     pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, T> {
         self.into_iter()
     }
 
+    /// Creates an `Array` filled by repeating the given value `count` times.
+    ///
+    /// Allocates space for `count` elements and initializes each element with `value`.
+    ///
+    /// # Constraints
+    /// - `T` must implement `Copy` because elements are copied repeatedly.
+    ///
+    /// # Safety
+    /// Uses unsafe pointer writes to initialize memory.
     pub fn repeating(value: T, count: usize) -> Self
     where
         T: Copy,
@@ -635,6 +684,14 @@ impl<T> Array<T> {
         }
     }
 
+    /// Returns the index of the first occurrence of `element` in the array.
+    ///
+    /// # Parameters
+    /// - `element`: A reference to the element to search for.
+    ///
+    /// # Returns
+    /// - `Some(index)` if the element is found.
+    /// - `None` if the element is not found.
     pub fn first_index_of(&self, element: &T) -> Option<usize>
     where
         T: PartialEq,
@@ -642,6 +699,8 @@ impl<T> Array<T> {
         (0..self.length).find(|&i| &self[i] == element)
     }
 
+    /// Returns the index of the first occurrence of `element` in the array.
+    #[deprecated]
     pub fn index_of(&self, element: &T) -> Option<usize>
     where
         T: PartialEq,
@@ -649,6 +708,14 @@ impl<T> Array<T> {
         self.first_index_of(element)
     }
 
+    /// Returns the index of the first element satisfying the predicate.
+    ///
+    /// # Parameters
+    /// - `predicate`: A closure that returns `true` for the desired element.
+    ///
+    /// # Returns
+    /// - `Some(index)` of the first element where `predicate` returns `true`.
+    /// - `None` if no element satisfies the predicate.
     pub fn first_index_where<F>(&self, predicate: F) -> Option<usize>
     where
         F: Fn(&T) -> bool,
@@ -656,6 +723,14 @@ impl<T> Array<T> {
         (0..self.length).find(|&i| predicate(&self[i]))
     }
 
+    /// Returns a reference to the last element that satisfies the predicate.
+    ///
+    /// # Parameters
+    /// - `predicate`: A closure that returns `true` for the desired element.
+    ///
+    /// # Returns
+    /// - `Some(&T)` for the last matching element.
+    /// - `None` if no element satisfies the predicate.
     pub fn last_where<F>(&self, predicate: F) -> Option<&T>
     where
         F: Fn(&T) -> bool,
@@ -668,6 +743,14 @@ impl<T> Array<T> {
         None
     }
 
+    /// Returns the index of the last occurrence of `element` in the array.
+    ///
+    /// # Parameters
+    /// - `element`: A reference to the element to search for.
+    ///
+    /// # Returns
+    /// - `Some(index)` if the element is found.
+    /// - `None` if the element is not found.
     pub fn last_index_of(&self, element: &T) -> Option<usize>
     where
         T: PartialEq,
@@ -675,6 +758,14 @@ impl<T> Array<T> {
         (0..self.length).rev().find(|&i| &self[i] == element)
     }
 
+    /// Returns the index of the last element satisfying the predicate.
+    ///
+    /// # Parameters
+    /// - `predicate`: A closure that returns `true` for the desired element.
+    ///
+    /// # Returns
+    /// - `Some(index)` of the last element where `predicate` returns `true`.
+    /// - `None` if no element satisfies the predicate.
     pub fn last_index_where<F>(&self, predicate: F) -> Option<usize>
     where
         F: Fn(&T) -> bool,
@@ -682,6 +773,12 @@ impl<T> Array<T> {
         (0..self.length).rev().find(|&i| predicate(&self[i]))
     }
 
+    /// Returns a new `Array` containing the first `n` elements (a prefix) of this array.
+    ///
+    /// If `n` is greater than the length of the array, returns the whole array.
+    ///
+    /// # Returns
+    /// - A new `Array` containing the prefix elements.
     #[must_use]
     pub fn prefix(&self, n: usize) -> Self
     where
@@ -723,6 +820,16 @@ impl<T> Array<T> {
         self.prefix(index)
     }
 
+    /// Returns a new `Array` containing the longest prefix of elements
+    /// that satisfy the given predicate.
+    ///
+    /// Iterates from the start and collects elements until the predicate returns false.
+    ///
+    /// # Parameters
+    /// - `predicate`: Closure returning `true` for elements to include.
+    ///
+    /// # Returns
+    /// - An `Array` containing the prefix of matching elements.
     #[must_use]
     pub fn prefix_while<F>(&self, predicate: F) -> Self
     where
@@ -740,6 +847,15 @@ impl<T> Array<T> {
         result
     }
 
+    /// Returns a new `Array` containing the last `n` elements (a suffix) of this array.
+    ///
+    /// If `n` is greater than the array length, returns the whole array.
+    ///
+    /// # Parameters
+    /// - `n`: The number of elements to include from the end.
+    ///
+    /// # Returns
+    /// - An `Array` with the last `n` elements.
     #[must_use]
     pub fn suffix(&self, n: usize) -> Self
     where
@@ -771,6 +887,15 @@ impl<T> Array<T> {
         result
     }
 
+    /// Returns a new `Array` with the first `n` elements dropped.
+    ///
+    /// If `n` is greater than the array length, returns an empty array.
+    ///
+    /// # Parameters
+    /// - `n`: Number of elements to drop from the start.
+    ///
+    /// # Returns
+    /// - An `Array` with the first `n` elements removed.
     #[must_use]
     pub fn drop_first(&self, n: usize) -> Self
     where
@@ -786,6 +911,15 @@ impl<T> Array<T> {
         })
     }
 
+    /// Returns a new `Array` with the last `n` elements dropped.
+    ///
+    /// If `n` is greater than the array length, returns an empty array.
+    ///
+    /// # Parameters
+    /// - `n`: Number of elements to drop from the end.
+    ///
+    /// # Returns
+    /// - An `Array` with the last `n` elements removed.
     #[must_use]
     pub fn drop_last(&self, n: usize) -> Self
     where
@@ -801,6 +935,16 @@ impl<T> Array<T> {
         })
     }
 
+    /// Returns a new `Array` with the longest prefix of elements satisfying the predicate dropped.
+    ///
+    /// Iterates from the start, dropping elements while the predicate returns `true`,
+    /// then returns the rest of the array.
+    ///
+    /// # Parameters
+    /// - `predicate`: Closure that returns `true` for elements to drop.
+    ///
+    /// # Returns
+    /// - An `Array` starting from the first element where `predicate` returns `false`.
     #[must_use]
     pub fn drop_while<F>(&self, predicate: F) -> Self
     where
@@ -1044,6 +1188,36 @@ impl<T> Drop for Array<T> {
     }
 }
 
+/// Macro to create an `Array` collection with various initialization options.
+///
+/// This macro supports the following forms:
+///
+/// - `array!()`
+///
+///   Creates a default, empty `Array`.
+///
+/// - `array!(elem; count)`
+///
+///   Creates an `Array` filled with `count` copies of `elem`.
+///
+/// - `array!(elem1, elem2, ..., elemN)`
+///
+///   Creates an `Array` containing the given elements in order.
+///
+/// # Examples
+///
+/// ```
+/// use foundation::{array, collections::Array};
+///
+/// // Create an empty array
+/// let a: Array<i32> = array![];
+///
+/// // Create an array with 5 copies of 42
+/// let b = array![42; 5];
+///
+/// // Create an array with given elements
+/// let c = array![1, 2, 3, 4];
+/// ```
 #[macro_export]
 macro_rules! array {
     () => (
@@ -1061,6 +1235,10 @@ macro_rules! array {
     }};
 }
 
+/// A dynamically allocated slice-like collection managing a buffer of elements.
+///
+/// `ArraySlice` provides manual memory management, insertion, removal, and indexing.
+/// It stores elements in a contiguous memory block and manages capacity explicitly.
 #[derive(Debug)]
 pub struct ArraySlice<T> {
     ptr: NonNull<T>,
@@ -1080,6 +1258,19 @@ impl<T: Clone> Clone for ArraySlice<T> {
 }
 
 impl<T> ArraySlice<T> {
+    /// Constructs a new `ArraySlice` with the specified capacity.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `capacity` is zero or if memory allocation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use foundation::collections::ArraySlice;
+    ///
+    /// let slice: ArraySlice<i32> = ArraySlice::new(10);
+    /// ```
     pub fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "Capacity must be greater than zero");
         let layout = Layout::array::<T>(capacity).expect("Invalid layout");
@@ -1095,6 +1286,24 @@ impl<T> ArraySlice<T> {
         }
     }
 
+    /// Inserts an element at the specified index, shifting subsequent elements to the right.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `at` is greater than the current length.
+    ///
+    /// # Safety
+    ///
+    /// This function uses unsafe code to manipulate raw pointers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use foundation::collections::ArraySlice;
+    ///
+    /// let mut slice = ArraySlice::new(5);
+    /// slice.insert(42, 0);
+    /// ```
     pub fn insert(&mut self, element: T, at: usize) {
         assert!((at <= self.len), "Index out of bounds");
 
@@ -1109,6 +1318,24 @@ impl<T> ArraySlice<T> {
         }
     }
 
+    /// Removes and returns the element at the specified index, shifting subsequent elements left.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `at` is out of bounds.
+    ///
+    /// # Safety
+    ///
+    /// Uses unsafe pointer manipulation for efficient element removal.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut slice = ArraySlice::new(5);
+    /// slice.insert(42, 0);
+    /// let removed = slice.remove(0);
+    /// assert_eq!(removed, 42);
+    /// ```
     pub fn remove(&mut self, at: usize) -> T {
         assert!((at < self.len), "Index out of bounds");
 
@@ -1124,11 +1351,37 @@ impl<T> ArraySlice<T> {
         }
     }
 
+    /// Returns the total capacity of the `ArraySlice`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let slice = ArraySlice::<i32>::new(10);
+    /// assert_eq!(slice.capacity(), 10);
+    /// ```
     #[must_use]
     pub const fn capacity(&self) -> usize {
         self.capacity
     }
 
+    /// Reserves additional capacity to accommodate at least `additional` more elements.
+    ///
+    /// This may reallocate the internal buffer and move existing elements to the new memory.
+    ///
+    /// # Panics
+    ///
+    /// Panics if memory allocation fails.
+    ///
+    /// # Safety
+    ///
+    /// Uses unsafe pointer operations and manual memory management.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut slice = ArraySlice::new(2);
+    /// slice.reserve_capacity(3); // total capacity becomes 5
+    /// ```
     pub fn reserve_capacity(&mut self, additional: usize) {
         let new_capacity = self.capacity + additional;
         let new_layout = Layout::array::<T>(new_capacity).expect("Invalid layout");
@@ -1253,7 +1506,6 @@ impl<T: Clone> Iterator for ArraySlice<T> {
     }
 }
 
-// Manual memory cleanup
 impl<T> Drop for ArraySlice<T> {
     fn drop(&mut self) {
         unsafe {

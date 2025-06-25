@@ -5,6 +5,11 @@ use core::{
 
 use crate::collections::{Collection, IndexingIterator, Sequence};
 
+/// A view into a contiguous range of elements within a collection.
+///
+/// `Slice` holds a reference to a collection and a range specifying
+/// the subset of elements this slice represents. It does not own the
+/// elements but provides a window into the original collection.
 #[derive(Debug, Clone)]
 pub struct Slice<'a, C: Collection> {
     collection: &'a C,

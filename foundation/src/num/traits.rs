@@ -1,3 +1,6 @@
+//! This module defines traits and utilities to support generic numeric conversions,
+//! abstractions.
+
 use core::{
     hash::Hash,
     mem,
