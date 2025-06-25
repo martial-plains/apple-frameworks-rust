@@ -211,7 +211,7 @@ impl<T> Array<T> {
     ///
     /// # Safety
     /// This function uses unsafe memory allocation and writes elements via raw pointers.
-    pub fn init<S>(sequence: S) -> Self
+    pub fn init<S>(sequence: &S) -> Self
     where
         T: Clone,
         S: Sequence<Element = T> + PartialEq,
@@ -1271,6 +1271,7 @@ impl<T> ArraySlice<T> {
     ///
     /// let slice: ArraySlice<i32> = ArraySlice::new(10);
     /// ```
+    #[must_use]
     pub fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "Capacity must be greater than zero");
         let layout = Layout::array::<T>(capacity).expect("Invalid layout");

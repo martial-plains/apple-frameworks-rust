@@ -59,7 +59,7 @@ where
 {
     /// Creates a new `EnumeratedSequence` from a base sequence,
     /// which yields pairs of `(index, element)` from the underlying sequence.
-    pub fn new(base: Base) -> Self {
+    pub fn new(base: &Base) -> Self {
         Self {
             iter: base.iter(),
             index: 0,

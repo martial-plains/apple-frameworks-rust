@@ -11,7 +11,7 @@ use crate::collections::{Collection, IndexingIterator, Sequence};
 /// # Type parameters
 ///
 /// - `C`: The type of the underlying collection, which must implement
-///        the `Collection` trait.
+///   the `Collection` trait.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefaultIndices<C: Collection> {
     collection: C,

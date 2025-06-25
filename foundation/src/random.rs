@@ -1,5 +1,3 @@
-use libc::{c_int, c_uint, getrandom};
-
 use crate::{num::traits::BinaryInteger, traits::RandomNumberGenerator};
 
 /// A system-based cryptographically secure random number generator.
@@ -71,9 +69,12 @@ impl SystemRandomNumberGenerator {
     /// let mut data = [0u8; 16];
     /// rng.fill_bytes(&mut data);
     /// ```
+    #[allow(clippy::cast_sign_loss)]
     pub fn fill_bytes(&self, buf: &mut [u8]) {
         cfg_select! {
             target_os = "linux" => {
+                use libc::{c_int, c_uint, getrandom};
+
                 const GRND_NONBLOCK: c_uint = 0x0001;
                 const ENOSYS: c_int = 38;
 
@@ -84,13 +85,9 @@ impl SystemRandomNumberGenerator {
                         let err = unsafe { *libc::__errno_location() };
                         if err == ENOSYS {
                             let fd = unsafe { libc::open(c"/dev/urandom".as_ptr(), libc::O_RDONLY) };
-                            if fd < 0 {
-                                panic!("Failed to open /dev/urandom");
-                            }
+                            assert!(fd >= 0, "Failed to open /dev/urandom");
                             let read_result = unsafe { libc::read(fd, buf[filled..].as_mut_ptr().cast(), buf.len() - filled) };
-                            if read_result < 0 {
-                                panic!("Failed to read from /dev/urandom");
-                            }
+                            assert!(read_result >= 0, "Failed to read from /dev/urandom");
                             filled += read_result as usize;
                             unsafe { libc::close(fd) };
                         } else {

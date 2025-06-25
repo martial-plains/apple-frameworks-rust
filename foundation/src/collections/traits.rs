@@ -427,7 +427,7 @@ pub trait Sequence {
     where
         Self: Sized,
     {
-        EnumeratedSequence::new(self)
+        EnumeratedSequence::new(&self)
     }
 
     /// A value less than or equal to the number of elements in the sequence, calculated non-destructively.
