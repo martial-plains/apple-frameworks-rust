@@ -1331,6 +1331,8 @@ impl<T> ArraySlice<T> {
     /// # Examples
     ///
     /// ```
+    /// use foundation::collections::ArraySlice;
+    ///
     /// let mut slice = ArraySlice::new(5);
     /// slice.insert(42, 0);
     /// let removed = slice.remove(0);
@@ -1356,6 +1358,8 @@ impl<T> ArraySlice<T> {
     /// # Examples
     ///
     /// ```
+    /// use foundation::collections::ArraySlice;
+    ///
     /// let slice = ArraySlice::<i32>::new(10);
     /// assert_eq!(slice.capacity(), 10);
     /// ```
@@ -1379,7 +1383,9 @@ impl<T> ArraySlice<T> {
     /// # Examples
     ///
     /// ```
-    /// let mut slice = ArraySlice::new(2);
+    /// use foundation::collections::ArraySlice;
+    ///
+    /// let mut slice: ArraySlice<usize> = ArraySlice::new(2);
     /// slice.reserve_capacity(3); // total capacity becomes 5
     /// ```
     pub fn reserve_capacity(&mut self, additional: usize) {

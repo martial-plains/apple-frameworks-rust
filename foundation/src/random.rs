@@ -28,7 +28,7 @@ use crate::{num::traits::BinaryInteger, traits::RandomNumberGenerator};
 /// ## Examples
 ///
 /// ```
-/// use foundation::random::SystemRandomNumberGenerator;
+/// use foundation::SystemRandomNumberGenerator;
 ///
 /// let rng = SystemRandomNumberGenerator::new();
 /// let mut buffer = [0u8; 32];
@@ -65,7 +65,7 @@ impl SystemRandomNumberGenerator {
     /// ## Examples
     ///
     /// ```
-    /// use foundation::random::SystemRandomNumberGenerator;
+    /// use foundation::SystemRandomNumberGenerator;
     ///
     /// let rng = SystemRandomNumberGenerator::new();
     /// let mut data = [0u8; 16];
