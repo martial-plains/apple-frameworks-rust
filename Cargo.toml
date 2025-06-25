@@ -8,3 +8,8 @@ edition = "2024"
 
 [workspace.dependencies]
 libc = "0.2.174"
+windows-sys = { version = "0.60.2", features = [
+    "Win32",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+] }

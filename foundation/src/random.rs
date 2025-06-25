@@ -2,12 +2,38 @@ use crate::{num::traits::BinaryInteger, traits::RandomNumberGenerator};
 
 /// A system-based random number generator using platform-specific APIs.
 ///
-/// `SystemRandomNumberGenerator` provides a secure source of randomness
-/// using the system's facilities. On macOS, it uses `arc4random_buf`
-/// to fill a buffer with cryptographically secure random bytes.
+/// `SystemRandomNumberGenerator` provides a cryptographically secure source
+/// of randomness using the operating system's facilities.
 ///
-/// This generator is currently only implemented for macOS.
-/// Other platforms will result in a no-op if `fill_bytes` is called.
+/// - On **macOS**, it uses `arc4random_buf` to securely fill a buffer.
+/// - On **Windows**, it uses `BCryptGenRandom` with the system-preferred RNG.
+/// - On unsupported platforms, this generator currently does nothing (no-op).
+///
+/// This struct is designed to be simple and safe, abstracting away
+/// the complexity of platform-specific random number generation.
+///
+/// # Examples
+///
+/// ```
+/// use foundation::random::SystemRandomNumberGenerator;
+///
+/// let rng = SystemRandomNumberGenerator::new();
+/// let mut buffer = [0u8; 32];
+/// rng.fill_bytes(&mut buffer);
+/// println!("Random bytes: {:?}", buffer);
+/// ```
+///
+/// # Platform Support
+///
+/// | Platform | Source             | Status      |
+/// |----------|--------------------|-------------|
+/// | macOS    | `arc4random_buf`   | ✅ Supported |
+/// | Windows  | `BCryptGenRandom`  | ✅ Supported |
+/// | Others   | *(none)*           | ⚠️ No-op     |
+///
+/// # Panics
+///
+/// - On **Windows**, this method will panic if `BCryptGenRandom` fails.
 #[derive(Debug, Clone, Copy)]
 pub struct SystemRandomNumberGenerator;
 
@@ -37,6 +63,26 @@ impl SystemRandomNumberGenerator {
     /// rng.fill_bytes(&mut data);
     /// ```
     pub fn fill_bytes(&self, buf: &mut [u8]) {
+        #[cfg(target_os = "windows")]
+        unsafe {
+            use core::ptr::null_mut;
+            use windows_sys::Win32::Security::Cryptography::{
+                BCRYPT_USE_SYSTEM_PREFERRED_RNG, BCryptGenRandom,
+            };
+
+            let status = BCryptGenRandom(
+                null_mut(),
+                buf.as_mut_ptr(),
+                buf.len() as u32,
+                BCRYPT_USE_SYSTEM_PREFERRED_RNG,
+            );
+
+            assert!(
+                (status == 0),
+                "BCryptGenRandom failed with status: 0x{status:X}"
+            );
+        }
+
         #[cfg(target_os = "macos")]
         {
             unsafe {
