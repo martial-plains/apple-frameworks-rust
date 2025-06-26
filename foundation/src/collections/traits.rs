@@ -23,8 +23,9 @@ use crate::{
 /// (via the `Index` trait), cloning ability, and index manipulation methods.
 /// It is designed to work with collections that have a notion of indices which
 /// can be ordered and copied.
-pub trait Collection:
-    Sequence<Iterator = IndexingIterator<Self>> + Index<Self::Index> + Clone
+pub trait Collection: Sequence<Iterator = IndexingIterator<Self>> + Index<Self::Index>
+where
+    Self: Sized,
 {
     /// The type used to index elements in the collection.
     type Index: PartialOrd + Copy;
@@ -168,7 +169,9 @@ pub trait Collection:
 ///
 /// This trait adds mutation capabilities to a collection, such as partitioning,
 /// swapping elements, and accessing underlying mutable storage when available.
-pub trait MutableCollection: Collection {
+pub trait MutableCollection:
+    Collection + Index<Self::Index> + Index<core::ops::Range<Self::Index>>
+{
     /// The type of subsequence that this mutable collection can produce.
     ///
     /// This allows operations that return a portion of the collection
@@ -187,7 +190,7 @@ pub trait MutableCollection: Collection {
     /// # Parameters
     /// - `predicate`: A function that takes a reference to an element and
     ///   returns a `Result<bool>`, used to determine partitioning.
-    fn partition_by<F>(&mut self, predicate: F) -> Result<Self::Index>
+    fn partition_by<F>(&mut self, predicate: F) -> Self::Index
     where
         F: FnMut(&Self::Element) -> Result<bool>;
 
@@ -211,9 +214,9 @@ pub trait MutableCollection: Collection {
     /// # Returns
     /// - `Some(result)` if contiguous storage is available and the function was called.
     /// - `None` if contiguous storage is not available.
-    fn with_contiguous_mutable_storage_if_available<T, R, F>(data: &mut Vec<T>, f: F) -> Option<R>
+    fn with_contiguous_mutable_storage_if_available<R, F>(&mut self, f: F) -> Option<R>
     where
-        F: FnOnce(&mut [T]) -> R;
+        F: FnOnce(&mut [Self::Element]) -> R;
 }
 
 /// A trait representing a sequence of elements that can be iterated over.

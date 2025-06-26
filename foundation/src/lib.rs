@@ -23,15 +23,44 @@
 
 extern crate alloc;
 
+/// Alias for a platform-dependent signed integer (`isize`),
+/// typically used for indexing and pointer arithmetic.
 pub type Int = isize;
+
+/// Alias for a platform-dependent unsigned integer (`usize`),
+/// commonly used for indexing collections.
 pub type UInt = usize;
+
+/// Alias for an 8-bit signed integer (`i8`),
+/// range: -128 to 127.
 pub type Int8 = i8;
+
+/// Alias for an 8-bit unsigned integer (`u8`),
+/// range: 0 to 255.
 pub type UInt8 = u8;
+
+/// Alias for a 16-bit signed integer (`i16`),
+/// range: -32,768 to 32,767.
 pub type Int16 = i16;
+
+/// Alias for a 16-bit unsigned integer (`u16`),
+/// range: 0 to 65,535.
 pub type UInt16 = u16;
+
+/// Alias for a 32-bit signed integer (`i32`),
+/// range: -2,147,483,648 to 2,147,483,647.
 pub type Int32 = i32;
+
+/// Alias for a 32-bit unsigned integer (`u32`),
+/// range: 0 to 4,294,967,295.
 pub type UInt32 = u32;
+
+/// Alias for a 64-bit signed integer (`i64`),
+/// range: −9,223,372,036,854,775,808 to 9,223,372,036,854,775,807.
 pub type Int64 = i64;
+
+/// Alias for a 64-bit unsigned integer (`u64`),
+/// range: 0 to 18,446,744,073,709,551,615.
 pub type UInt64 = u64;
 
 pub mod collections;

@@ -22,17 +22,6 @@ use crate::{num::traits::BinaryInteger, traits::RandomNumberGenerator};
 /// - On **Windows**, if `BCryptGenRandom` fails.
 /// - On **Linux**, if both `getrandom` and `/dev/urandom` are unavailable.
 /// - On **unsupported platforms**, where no secure RNG is implemented.
-///
-/// ## Examples
-///
-/// ```
-/// use foundation::SystemRandomNumberGenerator;
-///
-/// let rng = SystemRandomNumberGenerator::new();
-/// let mut buffer = [0u8; 32];
-/// rng.fill_bytes(&mut buffer);
-/// println!("Random bytes: {:?}", buffer);
-/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct SystemRandomNumberGenerator;
 
@@ -59,16 +48,6 @@ impl SystemRandomNumberGenerator {
     /// - On Linux, if both `getrandom` and `/dev/urandom` are unavailable or fail.
     /// - On Windows, if `BCryptGenRandom` returns a failure status.
     /// - On unsupported platforms.
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// use foundation::SystemRandomNumberGenerator;
-    ///
-    /// let rng = SystemRandomNumberGenerator::new();
-    /// let mut data = [0u8; 16];
-    /// rng.fill_bytes(&mut data);
-    /// ```
     #[allow(clippy::cast_sign_loss)]
     pub fn fill_bytes(&self, buf: &mut [u8]) {
         cfg_select! {

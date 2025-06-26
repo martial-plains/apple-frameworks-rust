@@ -48,8 +48,9 @@ use core::{
 };
 
 use crate::{
-    Int,
-    collections::{Collection, DefaultIndices, Sequence},
+    Int, UInt,
+    collections::{Collection, DefaultIndices, MutableCollection, Sequence},
+    errors::Result::Success,
 };
 
 use super::sequences::IndexingIterator;
@@ -1043,7 +1044,7 @@ impl<T> Array<T> {
 
 impl<T> Sequence for Array<T>
 where
-    T: Clone + PartialEq,
+    T: Clone,
 {
     type Element = T;
 
@@ -1060,9 +1061,9 @@ where
 
 impl<T> Collection for Array<T>
 where
-    T: Clone + PartialEq,
+    T: Clone,
 {
-    type Index = usize;
+    type Index = UInt;
 
     type Indices = DefaultIndices<Self>;
 
@@ -1088,11 +1089,13 @@ where
         self.length == 0
     }
 
+    #[allow(clippy::cast_sign_loss)]
     fn index_offset_by(&self, index: Self::Index, offset_by: Int) -> Self::Index {
         let new_index = index.saturating_add(offset_by as usize);
         new_index.min(self.end_index())
     }
 
+    #[allow(clippy::cast_sign_loss)]
     fn index_offset_by_limited_by(
         &self,
         index: Self::Index,
@@ -1104,6 +1107,53 @@ where
             Some(new_index)
         } else {
             None
+        }
+    }
+}
+
+impl<T> MutableCollection for Array<T>
+where
+    T: Clone,
+{
+    type SubSequence = ArraySlice<T>;
+
+    fn partition_by<F>(&mut self, mut predicate: F) -> Self::Index
+    where
+        F: FnMut(&Self::Element) -> crate::errors::Result<bool>,
+    {
+        let mut i = 0;
+        let mut j = self.length;
+
+        while i != j {
+            if matches!(predicate(&self[i]), Success(true)) {
+                i += 1;
+            } else {
+                j -= 1;
+                self.swap_at(i, j);
+            }
+        }
+
+        i
+    }
+
+    fn swap_at(&mut self, index1: Self::Index, index2: Self::Index) {
+        assert!(index1 < self.length && index2 < self.length);
+        unsafe {
+            let a = self.ptr.as_ptr().add(index1);
+            let b = self.ptr.as_ptr().add(index2);
+            core::ptr::swap(a, b);
+        }
+    }
+
+    fn with_contiguous_mutable_storage_if_available<R, F>(&mut self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut [Self::Element]) -> R,
+    {
+        unsafe {
+            Some(f(core::slice::from_raw_parts_mut(
+                self.ptr.as_ptr(),
+                self.length,
+            )))
         }
     }
 }
@@ -1121,19 +1171,33 @@ impl<'a, T: 'a> Sequence for &'a Array<T> {
     }
 }
 
-impl<T> Index<usize> for Array<T> {
+impl<T> Index<UInt> for Array<T> {
     type Output = T;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: UInt) -> &Self::Output {
         assert!((index < self.length), "Index out of bounds");
         unsafe { &*self.ptr.as_ptr().add(index) }
     }
 }
 
-impl<T> IndexMut<usize> for Array<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+impl<T> IndexMut<UInt> for Array<T> {
+    fn index_mut(&mut self, index: UInt) -> &mut Self::Output {
         assert!((index < self.length), "Index out of bounds");
         unsafe { &mut *self.ptr.as_ptr().add(index) }
+    }
+}
+
+impl<T> Index<Range<UInt>> for Array<T> {
+    type Output = [T];
+
+    fn index(&self, index: Range<UInt>) -> &Self::Output {
+        assert!(
+            index.start < self.length && index.end <= self.length,
+            "Index out of bounds"
+        );
+        unsafe {
+            core::slice::from_raw_parts(self.ptr.as_ptr().add(index.start), index.end - index.start)
+        }
     }
 }
 
@@ -1410,19 +1474,33 @@ impl<T> ArraySlice<T> {
     }
 }
 
-impl<T> Index<usize> for ArraySlice<T> {
+impl<T> Index<UInt> for ArraySlice<T> {
     type Output = T;
 
-    fn index(&self, idx: usize) -> &Self::Output {
+    fn index(&self, idx: UInt) -> &Self::Output {
         assert!((idx < self.len), "Index out of bounds");
         unsafe { &*self.ptr.as_ptr().add(idx) }
     }
 }
 
-impl<T> IndexMut<usize> for ArraySlice<T> {
-    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+impl<T> IndexMut<UInt> for ArraySlice<T> {
+    fn index_mut(&mut self, idx: UInt) -> &mut Self::Output {
         assert!((idx < self.len), "Index out of bounds");
         unsafe { &mut *self.ptr.as_ptr().add(idx) }
+    }
+}
+
+impl<T> Index<Range<UInt>> for ArraySlice<T> {
+    type Output = [T];
+
+    fn index(&self, index: Range<UInt>) -> &Self::Output {
+        assert!(
+            index.start < self.len && index.end <= self.len,
+            "Index out of bounds"
+        );
+        unsafe {
+            core::slice::from_raw_parts(self.ptr.as_ptr().add(index.start), index.end - index.start)
+        }
     }
 }
 
@@ -1477,11 +1555,13 @@ where
         self.len == 0
     }
 
+    #[allow(clippy::cast_sign_loss)]
     fn index_offset_by(&self, index: Self::Index, offset_by: Int) -> Self::Index {
         let new_index = index.saturating_add(offset_by as usize);
         new_index.min(self.end_index())
     }
 
+    #[allow(clippy::cast_sign_loss)]
     fn index_offset_by_limited_by(
         &self,
         index: Self::Index,
@@ -1493,6 +1573,53 @@ where
             Some(new_index)
         } else {
             None
+        }
+    }
+}
+
+impl<T> MutableCollection for ArraySlice<T>
+where
+    T: Clone,
+{
+    type SubSequence = Self;
+
+    fn partition_by<F>(&mut self, mut predicate: F) -> Self::Index
+    where
+        F: FnMut(&Self::Element) -> crate::errors::Result<bool>,
+    {
+        let mut i = 0;
+        let mut j = self.len;
+
+        while i != j {
+            if matches!(predicate(&self[i]), Success(true)) {
+                i += 1;
+            } else {
+                j -= 1;
+                self.swap_at(i, j);
+            }
+        }
+
+        i
+    }
+
+    fn swap_at(&mut self, index1: Self::Index, index2: Self::Index) {
+        assert!(index1 < self.len && index2 < self.len);
+        unsafe {
+            let a = self.ptr.as_ptr().add(index1);
+            let b = self.ptr.as_ptr().add(index2);
+            core::ptr::swap(a, b);
+        }
+    }
+
+    fn with_contiguous_mutable_storage_if_available<R, F>(&mut self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut [Self::Element]) -> R,
+    {
+        unsafe {
+            Some(f(core::slice::from_raw_parts_mut(
+                self.ptr.as_ptr(),
+                self.len,
+            )))
         }
     }
 }
@@ -1537,7 +1664,10 @@ mod tests {
 
     use alloc::vec::Vec;
 
-    use crate::collections::{ArraySlice, array::Array};
+    use crate::{
+        collections::{ArraySlice, MutableCollection, array::Array},
+        errors::Result::Success,
+    };
 
     #[test]
     fn test_empty_array() {
@@ -1758,6 +1888,36 @@ mod tests {
         }
 
         assert_eq!(*drop_count.borrow(), 5);
+    }
+
+    #[test]
+    fn test_array_swap_at() {
+        let mut array = array![1, 2, 3];
+        array.swap_at(0, 2);
+        assert_eq!(array, array![3, 2, 1]);
+    }
+
+    #[test]
+    fn test_partition_by() {
+        let mut array = array![1, 2, 3, 4, 5, 6];
+        let result = array.partition_by(|x| Success(*x % 2 == 0)); // Partition evens first
+        for i in 0..result {
+            assert!(array[i] % 2 == 0);
+        }
+        for i in result..array.count() {
+            assert!(array[i] % 2 != 0);
+        }
+    }
+
+    #[test]
+    fn test_with_contiguous_mutable_storage_if_available() {
+        let mut array = array![10, 20, 30];
+        let result = array.with_contiguous_mutable_storage_if_available(|slice| {
+            slice[0] += 1;
+            slice[2] += 2;
+            Array::from_iter(slice.to_vec())
+        });
+        assert_eq!(result, Some(array![11, 20, 32]));
     }
 
     #[test]

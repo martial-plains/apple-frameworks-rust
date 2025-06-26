@@ -32,7 +32,7 @@ where
 
 impl<C> Iterator for Slice<'_, C>
 where
-    C: Collection + Iterator,
+    C: Collection + Iterator + Clone,
 {
     type Item = C::Item;
 
@@ -44,7 +44,7 @@ where
 impl<T, C> Sequence for Slice<'_, C>
 where
     C: Collection<Element = T>,
-    Self: Collection,
+    Self: Collection + Clone,
 {
     type Element = C::Element;
 
@@ -61,7 +61,7 @@ where
 
 impl<C: Collection + Deref> Collection for Slice<'_, C>
 where
-    Self: Index<<C as Collection>::Index>,
+    Self: Index<<C as Collection>::Index> + Clone,
 {
     type Index = C::Index;
 

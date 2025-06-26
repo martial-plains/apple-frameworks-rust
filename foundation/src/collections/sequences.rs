@@ -211,7 +211,7 @@ where
     }
 }
 
-impl<C: Collection<Element = C>> Sequence for IndexingIterator<C> {
+impl<C: Collection<Element = C> + Clone> Sequence for IndexingIterator<C> {
     type Element = C::Element;
 
     type Iterator = Self;
