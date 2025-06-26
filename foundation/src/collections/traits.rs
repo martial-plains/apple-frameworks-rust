@@ -3,6 +3,7 @@ use core::{
     cmp::{Ordering, PartialEq, min},
     marker::Sized,
     ops::Index,
+    range::Range,
 };
 
 use alloc::vec::Vec;
@@ -166,15 +167,43 @@ where
         }
         None
     }
+
+    fn split_element(
+        &self,
+        separator: Self::Element,
+        max_splits: Int,
+        omitting_empty: bool,
+    ) -> Vec<Self::SubSequence>
+    where
+        Self::Element: PartialEq + Clone,
+    {
+        todo!()
+    }
+
+    fn split_by_collection<C>(
+        &self,
+        separator: C,
+        max_splits: Int,
+        omitting_empty: bool,
+    ) -> Array<Self::SubSequence>
+    where
+        C: Collection + Clone + PartialEq,
+        <C as Sequence>::Element: Clone,
+    {
+        let mut result = Array::default();
+        let start = self.start_index();
+        let splits = 0;
+        let sep = Array::init(&separator);
+
+        result
+    }
 }
 
 /// A trait representing a mutable collection that extends the `Collection` trait.
 ///
 /// This trait adds mutation capabilities to a collection, such as partitioning,
 /// swapping elements, and accessing underlying mutable storage when available.
-pub trait MutableCollection:
-    Collection + Index<Self::Index> + Index<core::ops::Range<Self::Index>>
-{
+pub trait MutableCollection: Collection + Index<Self::Index> + Index<Range<Self::Index>> {
     /// The type of subsequence that this mutable collection can produce.
     ///
     /// This allows operations that return a portion of the collection

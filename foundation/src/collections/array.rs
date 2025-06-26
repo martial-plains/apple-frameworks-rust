@@ -43,8 +43,9 @@ use core::{
     alloc::Layout,
     clone::Clone,
     cmp::{Ordering, PartialEq},
-    ops::{Index, IndexMut, Range},
+    ops::{Index, IndexMut},
     ptr::{self, NonNull},
+    range::Range,
 };
 
 use crate::{
@@ -387,13 +388,15 @@ impl<T> Array<T> {
     /// # Examples
     ///
     /// ```
+    /// #![feature(new_range_api)]
     /// use foundation::collections::Array;
+    /// use core::range::Range;
     ///
     /// let mut array = Array::default();
     /// array.append(1);
     /// array.append(2);
     /// array.append(3);
-    /// array.replace_subrange(1..2, [9, 8]); // Replaces element at index 1 with 9 and 8
+    /// array.replace_subrange(Range::from(1..2), [9, 8]); // Replaces element at index 1 with 9 and 8
     /// assert_eq!(array[1], 9);
     /// assert_eq!(array[2], 8);
     /// ```
@@ -1668,7 +1671,7 @@ impl<T> Drop for ArraySlice<T> {
 
 #[cfg(test)]
 mod tests {
-    use core::ptr;
+    use core::{ptr, range::Range};
 
     use alloc::vec::Vec;
 
@@ -1788,7 +1791,7 @@ mod tests {
     fn test_replace_subrange() {
         let mut arr = array![1, 2, 3, 4, 5];
         (1..4).count();
-        arr.replace_subrange(1..4, [10, 11]);
+        arr.replace_subrange(Range::from(1..4), [10, 11]);
         assert_eq!(arr.count(), 4);
         assert_eq!(arr[0], 1);
         assert_eq!(arr[1], 10);

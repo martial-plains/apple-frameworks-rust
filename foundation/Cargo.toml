@@ -3,6 +3,10 @@ name = "foundation"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+nightly = []
+
 [dependencies]
 libc = { workspace = true }
 
