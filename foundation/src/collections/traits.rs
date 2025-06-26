@@ -8,6 +8,7 @@ use core::{
 use alloc::vec::Vec;
 
 use crate::{
+    Int,
     collections::{
         IndexingIterator,
         array::Array,
@@ -78,7 +79,7 @@ pub trait Collection:
     /// Modifies the provided index by offsetting it by a given amount.
     ///
     /// This method updates `index` in-place by advancing it `offset_by` steps.
-    fn form_index_offset_by(&self, index: &mut Self::Index, offset_by: usize)
+    fn form_index_offset_by(&self, index: &mut Self::Index, offset_by: Int)
     where
         Self::Index: Copy,
     {
@@ -92,7 +93,7 @@ pub trait Collection:
     fn form_index_offset_by_limited_by(
         &self,
         index: &mut Self::Index,
-        offset_by: usize,
+        offset_by: isize,
         limited_by: Self::Index,
     ) -> bool
     where
@@ -132,7 +133,7 @@ pub trait Collection:
     /// Returns the index offset by a specified number of steps from the given index.
     ///
     /// The returned index may be beyond `end_index()`.
-    fn index_offset_by(&self, index: Self::Index, offset_by: usize) -> Self::Index;
+    fn index_offset_by(&self, index: Self::Index, offset_by: Int) -> Self::Index;
 
     /// Returns the index offset by a specified number of steps from the given index,
     /// limited by a `limited_by` index.
@@ -141,7 +142,7 @@ pub trait Collection:
     fn index_offset_by_limited_by(
         &self,
         index: Self::Index,
-        offset_by: usize,
+        offset_by: isize,
         limited_by: Self::Index,
     ) -> Option<Self::Index>;
 
@@ -161,6 +162,20 @@ pub trait Collection:
         }
         None
     }
+}
+
+pub trait MutableCollection: Collection {
+    type SubSequence: MutableCollection;
+
+    fn partition_by<F>(&mut self, predicate: F) -> Result<Self::Index>
+    where
+        F: FnMut(&Self::Element) -> Result<bool>;
+
+    fn swap_at(&mut self, index1: Self::Index, index2: Self::Index);
+
+    fn with_contiguous_mutable_storage_if_available<T, R, F>(data: &mut Vec<T>, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut [T]) -> R;
 }
 
 /// A trait representing a sequence of elements that can be iterated over.

@@ -1,6 +1,9 @@
 use core::ops::Index;
 
-use crate::collections::{Collection, IndexingIterator, Sequence};
+use crate::{
+    Int,
+    collections::{Collection, IndexingIterator, Sequence},
+};
 
 /// Represents a range of indices within a collection.
 ///
@@ -124,14 +127,14 @@ impl<C: Collection + Index<C::Index, Output = C::Element> + Clone> Collection
         self.collection.is_empty()
     }
 
-    fn index_offset_by(&self, index: Self::Index, offset_by: usize) -> Self::Index {
+    fn index_offset_by(&self, index: Self::Index, offset_by: Int) -> Self::Index {
         self.collection.index_offset_by(index, offset_by)
     }
 
     fn index_offset_by_limited_by(
         &self,
         index: Self::Index,
-        offset_by: usize,
+        offset_by: Int,
         limited_by: Self::Index,
     ) -> Option<Self::Index> {
         self.collection

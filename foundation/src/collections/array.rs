@@ -47,7 +47,10 @@ use core::{
     ptr::{self, NonNull},
 };
 
-use crate::collections::{Collection, DefaultIndices, Sequence};
+use crate::{
+    Int,
+    collections::{Collection, DefaultIndices, Sequence},
+};
 
 use super::sequences::IndexingIterator;
 
@@ -1085,18 +1088,18 @@ where
         self.length == 0
     }
 
-    fn index_offset_by(&self, index: Self::Index, offset_by: usize) -> Self::Index {
-        let new_index = index.saturating_add(offset_by);
+    fn index_offset_by(&self, index: Self::Index, offset_by: Int) -> Self::Index {
+        let new_index = index.saturating_add(offset_by as usize);
         new_index.min(self.end_index())
     }
 
     fn index_offset_by_limited_by(
         &self,
         index: Self::Index,
-        offset_by: usize,
+        offset_by: Int,
         limited_by: Self::Index,
     ) -> Option<Self::Index> {
-        let new_index = index.saturating_add(offset_by);
+        let new_index = index.saturating_add(offset_by as usize);
         if new_index <= limited_by && new_index < self.end_index() {
             Some(new_index)
         } else {
@@ -1474,18 +1477,18 @@ where
         self.len == 0
     }
 
-    fn index_offset_by(&self, index: Self::Index, offset_by: usize) -> Self::Index {
-        let new_index = index.saturating_add(offset_by);
+    fn index_offset_by(&self, index: Self::Index, offset_by: Int) -> Self::Index {
+        let new_index = index.saturating_add(offset_by as usize);
         new_index.min(self.end_index())
     }
 
     fn index_offset_by_limited_by(
         &self,
         index: Self::Index,
-        offset_by: usize,
+        offset_by: Int,
         limited_by: Self::Index,
     ) -> Option<Self::Index> {
-        let new_index = index.saturating_add(offset_by);
+        let new_index = index.saturating_add(offset_by as usize);
         if new_index <= limited_by && new_index < self.end_index() {
             Some(new_index)
         } else {
