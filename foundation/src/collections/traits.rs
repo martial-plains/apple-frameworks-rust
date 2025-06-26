@@ -164,15 +164,53 @@ pub trait Collection:
     }
 }
 
+/// A trait representing a mutable collection that extends the `Collection` trait.
+///
+/// This trait adds mutation capabilities to a collection, such as partitioning,
+/// swapping elements, and accessing underlying mutable storage when available.
 pub trait MutableCollection: Collection {
+    /// The type of subsequence that this mutable collection can produce.
+    ///
+    /// This allows operations that return a portion of the collection
+    /// while preserving the ability to mutate it.
     type SubSequence: MutableCollection;
 
+    /// Partitions the collection in-place according to the given predicate.
+    ///
+    /// The elements for which the predicate returns `Ok(true)` will be moved
+    /// to the front, and the rest to the back. The function returns the index
+    /// that separates the two partitions.
+    ///
+    /// # Errors
+    /// Returns an error if the predicate returns an error for any element.
+    ///
+    /// # Parameters
+    /// - `predicate`: A function that takes a reference to an element and
+    ///   returns a `Result<bool>`, used to determine partitioning.
     fn partition_by<F>(&mut self, predicate: F) -> Result<Self::Index>
     where
         F: FnMut(&Self::Element) -> Result<bool>;
 
+    /// Swaps the elements at the specified indices.
+    ///
+    /// # Parameters
+    /// - `index1`: The index of the first element to swap.
+    /// - `index2`: The index of the second element to swap.
     fn swap_at(&mut self, index1: Self::Index, index2: Self::Index);
 
+    /// Provides temporary mutable access to the underlying contiguous storage
+    /// if it is available.
+    ///
+    /// This method allows direct access to the internal slice of the collection
+    /// for optimized bulk operations when the storage is contiguous.
+    ///
+    /// # Parameters
+    /// - `data`: A mutable reference to a vector containing the collection data.
+    /// - `f`: A closure that takes a mutable slice of the data and returns a result.
+    ///
+    /// # Returns
+    /// - `Some(result)` if contiguous storage is available and the function was called.
+    /// - `None` if contiguous storage is not available.
     fn with_contiguous_mutable_storage_if_available<T, R, F>(data: &mut Vec<T>, f: F) -> Option<R>
     where
         F: FnOnce(&mut [T]) -> R;
