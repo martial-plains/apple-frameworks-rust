@@ -169,36 +169,6 @@ where
         }
         None
     }
-
-    fn split_element(
-        &self,
-        separator: Self::Element,
-        max_splits: Int,
-        omitting_empty: bool,
-    ) -> Vec<Self::SubSequence>
-    where
-        Self::Element: PartialEq + Clone,
-    {
-        todo!()
-    }
-
-    fn split_by_collection<C>(
-        &self,
-        separator: C,
-        max_splits: Int,
-        omitting_empty: bool,
-    ) -> Array<Self::SubSequence>
-    where
-        C: Collection + Clone + PartialEq,
-        <C as Sequence>::Element: Clone,
-    {
-        let mut result = Array::default();
-        let start = self.start_index();
-        let splits = 0;
-        let sep = Array::init(&separator);
-
-        result
-    }
 }
 
 /// A trait representing a mutable collection that extends the `Collection` trait.
