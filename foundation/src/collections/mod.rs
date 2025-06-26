@@ -20,11 +20,13 @@
 mod array;
 mod default_indices;
 mod sequences;
+#[cfg(feature = "new_range_api")]
 mod slices;
 mod traits;
 
 pub use array::*;
 pub use default_indices::*;
 pub use sequences::*;
+#[cfg(feature = "new_range_api")]
 pub use slices::*;
 pub use traits::*;

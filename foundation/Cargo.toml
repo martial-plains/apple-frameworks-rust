@@ -4,8 +4,11 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-default = []
-nightly = []
+default = ["nightly"]
+nightly = ["cfg_select", "new_range_api"]
+associated_type_defaults = []
+cfg_select = []
+new_range_api = []
 
 [dependencies]
 libc = { workspace = true }

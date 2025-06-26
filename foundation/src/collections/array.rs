@@ -39,19 +39,20 @@ use alloc::{
     vec::Vec,
 };
 
+#[cfg(feature = "new_range_api")]
+use core::range::Range;
+
 use core::{
     alloc::Layout,
     clone::Clone,
     cmp::{Ordering, PartialEq},
     ops::{Index, IndexMut},
     ptr::{self, NonNull},
-    range::Range,
 };
 
 use crate::{
     Int, UInt,
-    collections::{Collection, DefaultIndices, MutableCollection, Sequence},
-    errors::Result::Success,
+    collections::{Collection, DefaultIndices, Sequence},
 };
 
 use super::sequences::IndexingIterator;
@@ -400,6 +401,7 @@ impl<T> Array<T> {
     /// assert_eq!(array[1], 9);
     /// assert_eq!(array[2], 8);
     /// ```
+    #[cfg(feature = "new_range_api")]
     pub fn replace_subrange<C>(&mut self, range: Range<usize>, with: C)
     where
         C: IntoIterator<Item = T>,
@@ -1118,7 +1120,8 @@ where
     }
 }
 
-impl<T> MutableCollection for Array<T>
+#[cfg(feature = "new_range_api")]
+impl<T> super::MutableCollection for Array<T>
 where
     T: Clone,
 {
@@ -1132,7 +1135,7 @@ where
         let mut j = self.length;
 
         while i != j {
-            if matches!(predicate(&self[i]), Success(true)) {
+            if matches!(predicate(&self[i]), crate::errors::Result::Success(true)) {
                 i += 1;
             } else {
                 j -= 1;
@@ -1194,6 +1197,7 @@ impl<T> IndexMut<UInt> for Array<T> {
     }
 }
 
+#[cfg(feature = "new_range_api")]
 impl<T> Index<Range<UInt>> for Array<T> {
     type Output = [T];
 
@@ -1497,6 +1501,7 @@ impl<T> IndexMut<UInt> for ArraySlice<T> {
     }
 }
 
+#[cfg(feature = "new_range_api")]
 impl<T> Index<Range<UInt>> for ArraySlice<T> {
     type Output = [T];
 
@@ -1588,7 +1593,8 @@ where
     }
 }
 
-impl<T> MutableCollection for ArraySlice<T>
+#[cfg(feature = "new_range_api")]
+impl<T> super::MutableCollection for ArraySlice<T>
 where
     T: Clone,
 {
@@ -1602,7 +1608,7 @@ where
         let mut j = self.len;
 
         while i != j {
-            if matches!(predicate(&self[i]), Success(true)) {
+            if matches!(predicate(&self[i]), crate::errors::Result::Success(true)) {
                 i += 1;
             } else {
                 j -= 1;
@@ -1671,14 +1677,14 @@ impl<T> Drop for ArraySlice<T> {
 
 #[cfg(test)]
 mod tests {
-    use core::{ptr, range::Range};
+    use core::ptr;
+
+    #[cfg(feature = "new_range_api")]
+    use core::range::Range;
 
     use alloc::vec::Vec;
 
-    use crate::{
-        collections::{ArraySlice, MutableCollection, array::Array},
-        errors::Result::Success,
-    };
+    use crate::collections::{ArraySlice, array::Array};
 
     #[test]
     fn test_empty_array() {
@@ -1788,6 +1794,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "new_range_api")]
     fn test_replace_subrange() {
         let mut arr = array![1, 2, 3, 4, 5];
         (1..4).count();
@@ -1902,16 +1909,22 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "new_range_api")]
     fn test_array_swap_at() {
+        use crate::collections::MutableCollection;
+
         let mut array = array![1, 2, 3];
         array.swap_at(0, 2);
         assert_eq!(array, array![3, 2, 1]);
     }
 
     #[test]
+    #[cfg(feature = "new_range_api")]
     fn test_partition_by() {
+        use crate::collections::MutableCollection;
+
         let mut array = array![1, 2, 3, 4, 5, 6];
-        let result = array.partition_by(|x| Success(*x % 2 == 0)); // Partition evens first
+        let result = array.partition_by(|x| crate::errors::Result::Success(*x % 2 == 0)); // Partition evens first
         for i in 0..result {
             assert!(array[i] % 2 == 0);
         }
@@ -1921,7 +1934,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "new_range_api")]
     fn test_with_contiguous_mutable_storage_if_available() {
+        use crate::collections::MutableCollection;
+
         let mut array = array![10, 20, 30];
         let result = array.with_contiguous_mutable_storage_if_available(|slice| {
             slice[0] += 1;

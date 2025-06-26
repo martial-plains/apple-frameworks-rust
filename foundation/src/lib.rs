@@ -19,7 +19,8 @@
     missing_docs
 )]
 #![debugger_visualizer(natvis_file = "../.natvis")]
-#![feature(associated_type_defaults, cfg_select, new_range_api)]
+#![cfg_attr(feature = "cfg_select", feature(cfg_select))]
+#![cfg_attr(feature = "new_range_api", feature(new_range_api))]
 
 extern crate alloc;
 
@@ -67,8 +68,10 @@ pub mod collections;
 pub mod errors;
 pub mod num;
 
+#[cfg(feature = "cfg_select")]
 mod random;
 mod traits;
 
+#[cfg(feature = "cfg_select")]
 pub use random::*;
 pub use traits::*;

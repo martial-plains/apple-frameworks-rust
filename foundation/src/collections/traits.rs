@@ -3,8 +3,10 @@ use core::{
     cmp::{Ordering, PartialEq, min},
     marker::Sized,
     ops::Index,
-    range::Range,
 };
+
+#[cfg(feature = "new_range_api")]
+use core::range::Range;
 
 use alloc::vec::Vec;
 
@@ -203,6 +205,7 @@ where
 ///
 /// This trait adds mutation capabilities to a collection, such as partitioning,
 /// swapping elements, and accessing underlying mutable storage when available.
+#[cfg(feature = "new_range_api")]
 pub trait MutableCollection: Collection + Index<Self::Index> + Index<Range<Self::Index>> {
     /// The type of subsequence that this mutable collection can produce.
     ///
