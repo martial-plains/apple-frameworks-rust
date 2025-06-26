@@ -74,6 +74,9 @@ where
     /// Returns the ending index of the collection (one past the last valid index).
     fn end_index(&self) -> Self::Index;
 
+    /// Returns the indices of the elements in the collection.
+    fn indices(&self) -> Self::Indices;
+
     /// Returns the element immediately after the specified index, if any.
     fn index_after(&self, i: Self::Index) -> Option<Self::Element>;
 

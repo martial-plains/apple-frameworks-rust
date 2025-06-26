@@ -140,4 +140,8 @@ impl<C: Collection + Index<C::Index, Output = C::Element> + Clone> Collection
         self.collection
             .index_offset_by_limited_by(index, offset_by, limited_by)
     }
+
+    fn indices(&self) -> Self::Indices {
+        Self::new(self.collection.clone(), self.start, self.end)
+    }
 }

@@ -1109,6 +1109,10 @@ where
             None
         }
     }
+
+    fn indices(&self) -> Self::Indices {
+        DefaultIndices::new(self.clone(), self.start_index(), self.end_index())
+    }
 }
 
 impl<T> MutableCollection for Array<T>
@@ -1574,6 +1578,10 @@ where
         } else {
             None
         }
+    }
+
+    fn indices(&self) -> Self::Indices {
+        DefaultIndices::new(self.clone(), self.start_index(), self.end_index())
     }
 }
 

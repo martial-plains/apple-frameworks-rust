@@ -102,4 +102,8 @@ where
         self.collection
             .index_offset_by_limited_by(index, offset_by, limited_by)
     }
+
+    fn indices(&self) -> Self::Indices {
+        self.collection.indices()
+    }
 }
