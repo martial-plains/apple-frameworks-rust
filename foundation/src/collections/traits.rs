@@ -11,9 +11,9 @@ use core::range::Range;
 use alloc::vec::Vec;
 
 use crate::{
-    Int,
+    Int, RandomNumberGenerator, SystemRandomNumberGenerator,
     collections::{
-        IndexingIterator,
+        DropWhileSequence, IndexingIterator,
         array::Array,
         sequences::{DropFirstSequence, EnumeratedSequence, PrefixSequence},
     },
@@ -249,46 +249,46 @@ pub trait Sequence {
     /// Returns `true` if the predicate returns `true` for any element in the sequence.
     ///
     /// Stops early on the first match or returns `Success(false)` if no match is found.
-    fn contains_where<F>(&self, mut predicate: F) -> Result<bool>
+    fn contains_where<F>(&self, mut predicate: F) -> bool
     where
         F: FnMut(Self::Element) -> Result<bool>,
     {
         for element in self.iter() {
             if matches!(predicate(element), Success(true)) {
-                return Success(true);
+                return true;
             }
         }
-        Success(false)
+        false
     }
 
     /// Returns `true` if all elements in the sequence satisfy the given predicate.
     ///
     /// Stops early if the predicate returns `false` for any element.
-    fn all_satisfy<F>(&self, mut predicate: F) -> Result<bool>
+    fn all_satisfy<F>(&self, mut predicate: F) -> bool
     where
         F: FnMut(Self::Element) -> Result<bool>,
     {
         for element in self.iter() {
             if matches!(predicate(element), Success(false)) {
-                return Success(false);
+                return false;
             }
         }
-        Success(true)
+        true
     }
 
     /// Returns the first element in the sequence that satisfies the given predicate.
     ///
     /// Returns `Success(None)` if no matching element is found.
-    fn first_where<F>(&self, mut predicate: F) -> Result<Option<Self::Element>>
+    fn first_where<F>(&self, mut predicate: F) -> Option<Self::Element>
     where
         F: FnMut(&Self::Element) -> Result<bool>,
     {
         for element in self.iter() {
             if matches!(predicate(&element), Success(true)) {
-                return Success(Some(element));
+                return Some(element);
             }
         }
-        Success(None)
+        None
     }
 
     /// Returns the minimum element in the sequence, according to the natural ordering.
@@ -302,7 +302,7 @@ pub trait Sequence {
     /// Returns the minimum element in the sequence, using the given comparator function.
     ///
     /// Returns `Success(None)` if the sequence is empty.
-    fn min_by<F>(&self, compare: F) -> Result<Option<Self::Element>>
+    fn min_by<F>(&self, compare: F) -> Option<Self::Element>
     where
         F: Fn(&Self::Element, &Self::Element) -> Result<Ordering>,
     {
@@ -317,7 +317,7 @@ pub trait Sequence {
                 }
             }
         }
-        Success(min_element)
+        min_element
     }
 
     /// Returns the maximum element in the sequence, according to the natural ordering.
@@ -331,7 +331,7 @@ pub trait Sequence {
     /// Returns the maximum element in the sequence, using the given comparator function.
     ///
     /// Returns `Success(None)` if the sequence is empty.
-    fn max_by<F>(&self, compare: F) -> Result<Option<Self::Element>>
+    fn max_by<F>(&self, compare: F) -> Option<Self::Element>
     where
         F: Fn(&Self::Element, &Self::Element) -> Result<Ordering>,
     {
@@ -346,21 +346,21 @@ pub trait Sequence {
                 }
             }
         }
-        Success(max_element)
+        max_element
     }
 
     /// Returns a sequence containing at most `max_len` elements from the start of the sequence.
-    fn prefix(self, max_len: usize) -> PrefixSequence<impl Iterator<Item = Self::Element>>
+    fn prefix(self, max_len: usize) -> PrefixSequence<Self>
     where
         Self: Sized,
     {
-        PrefixSequence::new(self.iter(), max_len)
+        PrefixSequence::new(self, max_len)
     }
 
     /// Returns a sequence containing the leading elements that satisfy a predicate.
     ///
     /// Iteration stops at the first failure or error returned by the predicate.
-    fn prefix_while<F>(&self, mut predicate: F) -> Result<Array<Self::Element>>
+    fn prefix_while<F>(&self, mut predicate: F) -> Array<Self::Element>
     where
         F: FnMut(Self::Element) -> Result<bool>,
         Self::Element: Copy,
@@ -370,12 +370,11 @@ pub trait Sequence {
         for element in self.iter() {
             match predicate(element) {
                 Success(true) => result.append(element),
-                Success(false) => break,
-                Failure(e) => return Failure(e),
+                _ => break,
             }
         }
 
-        Success(result)
+        result
     }
 
     /// Returns the last `n` elements in the sequence.
@@ -399,11 +398,11 @@ pub trait Sequence {
     /// # Note
     /// This does **not** modify the original sequence—it returns a new iterator-backed sequence.
     #[must_use]
-    fn drop_first(self, n: usize) -> DropFirstSequence<impl Iterator<Item = Self::Element>>
+    fn drop_first(self, n: usize) -> DropFirstSequence<Self>
     where
         Self: Sized,
     {
-        DropFirstSequence::new(self.iter(), n)
+        DropFirstSequence::new(self, n)
     }
 
     /// Returns a new sequence with the last `k` elements removed.
@@ -418,6 +417,16 @@ pub trait Sequence {
         let dropped = collected[..collected.len().saturating_sub(k)].to_vec();
 
         Array::from_iter(dropped)
+    }
+
+    /// Creates an iterator that skips elements while the predicate returns `true`,
+    /// and then yields the remaining elements.
+    fn drop_while<P>(self, predicate: P) -> DropWhileSequence<Self, P>
+    where
+        Self: Sized,
+        P: FnMut(&Self::Element) -> bool,
+    {
+        DropWhileSequence::new(self, predicate)
     }
 
     /// Returns a new sequence containing only elements for which the predicate returns `true`.
@@ -699,23 +708,54 @@ pub trait Sequence {
         arr
     }
 
+    /// Returns a new array containing the elements of `self` in a random order,
+    /// using the default system-provided random number generator.
+    fn shuffled(&self) -> Array<Self::Element>
+    where
+        Self::Element: Clone,
+    {
+        let mut rng = SystemRandomNumberGenerator::new();
+        let mut items: Array<Self::Element> = self.iter().collect();
+        for i in (1..items.count()).rev() {
+            let j = rng.next_below(i + 1);
+            items.swap_at(i, j);
+        }
+        items
+    }
+
+    /// Returns a new array containing the elements of `self` in a random order,
+    /// using a user-provided random number generator.
+    fn shuffled_using<R>(&self, rng: &mut R) -> Array<Self::Element>
+    where
+        Self: Sized,
+        Self::Element: Clone,
+        R: RandomNumberGenerator,
+    {
+        let mut items: Array<Self::Element> = self.iter().collect();
+
+        for i in (1..items.count()).rev() {
+            let j = rng.next_below(i + 1);
+            items.swap_at(i, j);
+        }
+
+        items
+    }
+
     /// Counts the number of elements for which the predicate returns `true`.
     ///
     /// If any predicate call fails, returns the error.
-    fn count_where<F>(&self, mut predicate: F) -> Result<usize>
+    fn count_where<F>(&self, mut predicate: F) -> usize
     where
         F: FnMut(Self::Element) -> Result<bool>,
     {
         let mut count = 0;
 
         for element in self.iter() {
-            match predicate(element) {
-                Success(true) => count += 1,
-                Success(false) => {}
-                Failure(e) => return Failure(e),
+            if matches!(predicate(element), Success(true)) {
+                count += 1;
             }
         }
 
-        Success(count)
+        count
     }
 }

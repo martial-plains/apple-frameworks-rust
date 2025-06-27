@@ -1,4 +1,4 @@
-use crate::num::traits::BinaryInteger;
+use crate::num::traits::{FixedWidthInteger, UnsignedInteger};
 
 /// A trait for generating random values of various types.
 ///
@@ -25,5 +25,5 @@ pub trait RandomNumberGenerator {
     /// - `upper_bound`: The exclusive upper bound for the random value.
     fn next_below<T>(&mut self, upper_bound: T) -> T
     where
-        T: BinaryInteger + Default;
+        T: FixedWidthInteger + UnsignedInteger + Default;
 }

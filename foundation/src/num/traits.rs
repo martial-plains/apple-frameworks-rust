@@ -175,6 +175,8 @@ impl AdditiveArithmetic for f64 {
 /// ```
 pub trait Numeric: AdditiveArithmetic + Mul + MulAssign + Copy {}
 
+impl Numeric for isize {}
+
 impl Numeric for i8 {}
 
 impl Numeric for i16 {}
@@ -184,6 +186,8 @@ impl Numeric for i32 {}
 impl Numeric for i64 {}
 
 impl Numeric for i128 {}
+
+impl Numeric for usize {}
 
 impl Numeric for u8 {}
 
@@ -229,6 +233,8 @@ pub trait SignedNumeric: Numeric + Neg<Output = Self> {
         *self = self.neg();
     }
 }
+
+impl SignedNumeric for isize {}
 
 impl SignedNumeric for i8 {}
 
@@ -422,6 +428,20 @@ pub trait BinaryInteger:
     fn trailing_zero_bit_count(&self) -> usize;
 }
 
+impl BinaryInteger for usize {
+    fn signum(self) -> Self {
+        Self::from(self > 0)
+    }
+
+    fn is_signed() -> bool {
+        false
+    }
+
+    fn trailing_zero_bit_count(&self) -> usize {
+        self.trailing_zeros() as Self
+    }
+}
+
 impl BinaryInteger for u8 {
     fn signum(self) -> Self {
         Self::from(self > 0)
@@ -489,6 +509,20 @@ impl BinaryInteger for u128 {
 
     fn trailing_zero_bit_count(&self) -> usize {
         self.trailing_zeros() as usize
+    }
+}
+
+impl BinaryInteger for isize {
+    fn signum(self) -> Self {
+        if self < 0 { -1 } else { Self::from(self > 0) }
+    }
+
+    fn is_signed() -> bool {
+        true
+    }
+
+    fn trailing_zero_bit_count(&self) -> usize {
+        self.unsigned_abs().trailing_zeros() as usize
     }
 }
 
@@ -673,6 +707,64 @@ pub trait FixedWidthInteger: BinaryInteger {
     /// This is the smallest integer value that can be represented with the fixed width
     /// of the type.
     fn min() -> Self;
+}
+
+impl FixedWidthInteger for usize {
+    fn big_endian(&self) -> Self {
+        self.to_be()
+    }
+
+    fn byte_swapped(&self) -> Self {
+        self.swap_bytes()
+    }
+
+    fn leading_zero_bit_count(&self) -> usize {
+        self.leading_zeros() as Self
+    }
+
+    fn little_endian(&self) -> Self {
+        self.to_le()
+    }
+
+    fn nonzero_bit_count(&self) -> usize {
+        self.count_ones() as Self
+    }
+
+    fn adding_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        self.overflowing_add(rhs)
+    }
+
+    fn divided_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        if rhs == 0 {
+            (0, true)
+        } else {
+            self.overflowing_div(rhs)
+        }
+    }
+
+    fn multiplied_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        self.overflowing_mul(rhs)
+    }
+
+    fn remainder_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        if rhs == 0 {
+            (0, true)
+        } else {
+            self.overflowing_rem(rhs)
+        }
+    }
+
+    fn subtracting_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        self.overflowing_sub(rhs)
+    }
+
+    fn max() -> Self {
+        Self::MAX
+    }
+
+    fn min() -> Self {
+        Self::MIN
+    }
 }
 
 impl FixedWidthInteger for u8 {
@@ -926,6 +1018,64 @@ impl FixedWidthInteger for u128 {
 
     fn nonzero_bit_count(&self) -> usize {
         self.count_ones() as usize
+    }
+
+    fn adding_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        self.overflowing_add(rhs)
+    }
+
+    fn divided_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        if rhs == 0 {
+            (0, true)
+        } else {
+            self.overflowing_div(rhs)
+        }
+    }
+
+    fn multiplied_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        self.overflowing_mul(rhs)
+    }
+
+    fn remainder_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        if rhs == 0 {
+            (0, true)
+        } else {
+            self.overflowing_rem(rhs)
+        }
+    }
+
+    fn subtracting_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
+        self.overflowing_sub(rhs)
+    }
+
+    fn max() -> Self {
+        Self::MAX
+    }
+
+    fn min() -> Self {
+        Self::MIN
+    }
+}
+
+impl FixedWidthInteger for isize {
+    fn big_endian(&self) -> Self {
+        self.to_be()
+    }
+
+    fn byte_swapped(&self) -> Self {
+        self.swap_bytes()
+    }
+
+    fn leading_zero_bit_count(&self) -> usize {
+        self.unsigned_abs().leading_zeros() as usize
+    }
+
+    fn little_endian(&self) -> Self {
+        self.to_le()
+    }
+
+    fn nonzero_bit_count(&self) -> usize {
+        self.unsigned_abs().count_ones() as usize
     }
 
     fn adding_reporting_overflow(&self, rhs: Self) -> (Self, bool) {
@@ -1258,6 +1408,8 @@ impl FixedWidthInteger for i128 {
 /// An integer type that can represent both positive and negative values.
 pub trait SignedInteger: BinaryInteger + SignedNumeric {}
 
+impl SignedInteger for isize {}
+
 impl SignedInteger for i8 {}
 
 impl SignedInteger for i16 {}
@@ -1270,6 +1422,8 @@ impl SignedInteger for i128 {}
 
 /// An integer type that can represent only nonnegative values.
 pub trait UnsignedInteger: BinaryInteger {}
+
+impl UnsignedInteger for usize {}
 
 impl UnsignedInteger for u8 {}
 

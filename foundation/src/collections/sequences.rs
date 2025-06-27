@@ -1,7 +1,4 @@
-use crate::{
-    collections::{Sequence, traits::Collection},
-    errors::Result::{self},
-};
+use crate::collections::{Sequence, traits::Collection};
 
 /// A struct representing the `PrefixSequence`, which limits the number of elements from the base iterator.
 #[derive(Debug, Clone, Copy)]
@@ -13,7 +10,7 @@ pub struct PrefixSequence<Base> {
 
 impl<Base> PrefixSequence<Base>
 where
-    Base: Iterator,
+    Base: Sequence,
 {
     /// Creates a new `PrefixSequence` wrapping the given base iterator,
     /// yielding at most `n` elements.
@@ -28,9 +25,9 @@ where
 
 impl<Base> Iterator for PrefixSequence<Base>
 where
-    Base: Iterator,
+    Base: Sequence,
 {
-    type Item = Base::Item;
+    type Item = Base::Element;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.count >= self.limit {
@@ -38,7 +35,7 @@ where
         }
 
         self.count += 1;
-        self.base.next()
+        self.base.iter().nth(self.count - 1)
     }
 }
 
@@ -91,7 +88,7 @@ pub struct DropFirstSequence<Base> {
 
 impl<Base> DropFirstSequence<Base>
 where
-    Base: Iterator,
+    Base: Sequence,
 {
     /// Creates a new `DropFirstSequence` that drops the first `dropping` elements from the base iterator.
     pub const fn new(base: Base, dropping: usize) -> Self {
@@ -131,8 +128,8 @@ pub struct DropWhileSequence<Base, F> {
 
 impl<Base, F> DropWhileSequence<Base, F>
 where
-    Base: Iterator,
-    F: FnMut(&Base::Item) -> Result<bool>,
+    Base: Sequence,
+    F: FnMut(&Base::Element) -> bool,
 {
     /// Creates a new `DropWhileSequence` that skips elements from the base iterator
     /// while the predicate returns `true`.
