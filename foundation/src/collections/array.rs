@@ -46,6 +46,7 @@ use core::{
     alloc::Layout,
     clone::Clone,
     cmp::{Ordering, PartialEq},
+    fmt::{self, Formatter},
     ops::{Index, IndexMut},
     ptr::{self, NonNull},
 };
@@ -78,7 +79,6 @@ pub type InlineArray<const COUNT: usize, T> = [T; COUNT];
 ///
 /// # Type Parameters
 /// - `T`: The element type stored in the array.
-#[derive(Debug)]
 pub struct Array<T> {
     ptr: NonNull<T>,
     capacity: usize,
@@ -164,6 +164,14 @@ impl<T> Default for Array<T> {
             capacity,
             length: 0,
         }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Array<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_list()
+            .entries((0..self.length).map(|i| unsafe { &*self.ptr.as_ptr().add(i) }))
+            .finish()
     }
 }
 
@@ -1317,7 +1325,6 @@ macro_rules! array {
 ///
 /// `ArraySlice` provides manual memory management, insertion, removal, and indexing.
 /// It stores elements in a contiguous memory block and manages capacity explicitly.
-#[derive(Debug)]
 pub struct ArraySlice<T> {
     ptr: NonNull<T>,
     len: usize,
@@ -1332,6 +1339,14 @@ impl<T: Clone> Clone for ArraySlice<T> {
             slice.insert(value.clone(), slice.len);
         }
         slice
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for ArraySlice<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_list()
+            .entries((0..self.len).map(|i| unsafe { &*self.ptr.as_ptr().add(i) }))
+            .finish()
     }
 }
 
