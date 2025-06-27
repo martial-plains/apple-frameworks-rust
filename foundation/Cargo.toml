@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-default = ["nightly"]
+default = []
 nightly = ["cfg_select", "new_range_api"]
 associated_type_defaults = []
 cfg_select = []

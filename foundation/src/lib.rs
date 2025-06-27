@@ -68,10 +68,8 @@ pub mod collections;
 pub mod errors;
 pub mod num;
 
-#[cfg(feature = "cfg_select")]
 mod random;
 mod traits;
 
-#[cfg(feature = "cfg_select")]
 pub use random::*;
 pub use traits::*;

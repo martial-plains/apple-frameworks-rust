@@ -49,6 +49,7 @@ impl SystemRandomNumberGenerator {
     /// - On Windows, if `BCryptGenRandom` returns a failure status.
     /// - On unsupported platforms.
     #[allow(clippy::cast_sign_loss)]
+    #[cfg(feature = "cfg_select")]
     pub fn fill_bytes(&self, buf: &mut [u8]) {
         cfg_select! {
             target_os = "linux" => {
@@ -109,6 +110,87 @@ impl SystemRandomNumberGenerator {
             _ => {
                 panic!("SystemRandomNumberGenerator is not supported on this platform. Please implement a custom RNG or use a different one.");
             }
+        }
+    }
+
+    /// Fills the given buffer with cryptographically secure random bytes using the system RNG.
+    ///
+    /// ## Panics
+    ///
+    /// - On Linux, if both `getrandom` and `/dev/urandom` are unavailable or fail.
+    /// - On Windows, if `BCryptGenRandom` returns a failure status.
+    /// - On unsupported platforms.
+    #[cfg(not(feature = "cfg_select"))]
+    pub fn fill_bytes(&self, buf: &mut [u8]) {
+        #[cfg(target_os = "linux")]
+        {
+            use libc::{c_int, c_uint, getrandom};
+
+            const GRND_NONBLOCK: c_uint = 0x0001;
+            const ENOSYS: c_int = 38;
+
+            let mut filled = 0;
+            while filled < buf.len() {
+                let result = unsafe {
+                    getrandom(
+                        buf[filled..].as_mut_ptr().cast(),
+                        buf.len() - filled,
+                        GRND_NONBLOCK,
+                    )
+                };
+                if result < 0 {
+                    let err = unsafe { *libc::__errno_location() };
+                    if err == ENOSYS {
+                        let fd = unsafe { libc::open(c"/dev/urandom".as_ptr(), libc::O_RDONLY) };
+                        assert!(fd >= 0, "Failed to open /dev/urandom");
+                        let read_result = unsafe {
+                            libc::read(fd, buf[filled..].as_mut_ptr().cast(), buf.len() - filled)
+                        };
+                        assert!(read_result >= 0, "Failed to read from /dev/urandom");
+                        filled += read_result as usize;
+                        unsafe { libc::close(fd) };
+                    } else {
+                        panic!("getrandom failed with error: {}", err);
+                    }
+                } else {
+                    filled += result as usize;
+                }
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            unsafe {
+                use libc::arc4random_buf;
+                arc4random_buf(buf.as_mut_ptr().cast(), buf.len());
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            unsafe {
+                use core::ptr::null_mut;
+                use windows_sys::Win32::Security::Cryptography::{
+                    BCRYPT_USE_SYSTEM_PREFERRED_RNG, BCryptGenRandom,
+                };
+
+                let status = BCryptGenRandom(
+                    null_mut(),
+                    buf.as_mut_ptr(),
+                    buf.len() as u32,
+                    BCRYPT_USE_SYSTEM_PREFERRED_RNG,
+                );
+
+                assert!(
+                    (status == 0),
+                    "BCryptGenRandom failed with status: 0x{status:X}"
+                );
+            }
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        {
+            panic!("SystemRandomNumberGenerator is not supported on this platform.");
         }
     }
 }

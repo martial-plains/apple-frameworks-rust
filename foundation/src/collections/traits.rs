@@ -11,7 +11,7 @@ use core::range::Range;
 use alloc::vec::Vec;
 
 use crate::{
-    Int, RandomNumberGenerator, SystemRandomNumberGenerator,
+    Int,
     collections::{
         DropWhileSequence, IndexingIterator,
         array::Array,
@@ -19,6 +19,9 @@ use crate::{
     },
     errors::Result::{self, Failure, Success},
 };
+
+#[cfg(feature = "new_range_api")]
+use crate::{RandomNumberGenerator, SystemRandomNumberGenerator};
 
 /// A trait representing a collection of elements with indexed access and sequence behavior.
 ///
@@ -710,6 +713,7 @@ pub trait Sequence {
 
     /// Returns a new array containing the elements of `self` in a random order,
     /// using the default system-provided random number generator.
+    #[cfg(feature = "new_range_api")]
     fn shuffled(&self) -> Array<Self::Element>
     where
         Self::Element: Clone,
@@ -725,6 +729,7 @@ pub trait Sequence {
 
     /// Returns a new array containing the elements of `self` in a random order,
     /// using a user-provided random number generator.
+    #[cfg(feature = "new_range_api")]
     fn shuffled_using<R>(&self, rng: &mut R) -> Array<Self::Element>
     where
         Self: Sized,
