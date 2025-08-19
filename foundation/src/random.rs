@@ -121,6 +121,7 @@ impl SystemRandomNumberGenerator {
     /// - On Windows, if `BCryptGenRandom` returns a failure status.
     /// - On unsupported platforms.
     #[cfg(not(feature = "cfg_select"))]
+    #[allow(clippy::cast_possible_truncation)]
     pub fn fill_bytes(&self, buf: &mut [u8]) {
         #[cfg(target_os = "linux")]
         {
