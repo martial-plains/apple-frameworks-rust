@@ -272,7 +272,7 @@ impl SignedNumeric for f64 {}
 /// assert_eq!(x.quotient_and_remainder_dividing_by(y), (2, 0));
 /// assert!(x.is_multiple_of(y));
 /// assert_eq!(x.signum(), 1);
-/// assert_eq!(x.bit_width(), 32);
+/// assert_eq!(<i32 as BinaryInteger>::bit_width_of(), 32);
 /// ```
 pub trait BinaryInteger:
     Hash
@@ -385,26 +385,25 @@ pub trait BinaryInteger:
     /// ```
     fn is_signed() -> bool;
 
-    /// Returns the number of bits required to represent this integer.
+    /// Returns the number of bits in the current binary representation of this value.
     ///
-    /// This method returns the number of bits in the binary representation of the integer, excluding
-    /// the sign bit for signed types.
+    /// For fixed-width integer types (such as `i32`, `u64`, etc.), this method
+    /// returns the total number of bits used for the underlying binary representation
+    /// of the type, including the sign bit for signed integers.
     ///
     /// # Returns
-    /// The number of bits in the binary representation of the integer.
+    /// The total number of bits occupied by this value's binary representation.
     ///
     /// # Examples
     /// ```
     /// use foundation::num::traits::BinaryInteger;
     ///
-    /// let x: i32 = 10;
-    /// assert_eq!(x.bit_width(), 32);
+    /// assert_eq!(<i32 as BinaryInteger>::bit_width_of(), 32);
     ///
-    /// let y: u64 = 1000;
-    /// assert_eq!(y.bit_width(), 64);
+    /// assert_eq!(<u64 as BinaryInteger>::bit_width_of(), 64);
     /// ```
-    fn bit_width(&self) -> usize {
-        mem::size_of::<Self>() * 8
+    fn bit_width_of() -> usize {
+        core::mem::size_of::<Self>() * 8
     }
 
     /// Returns the number of trailing zero bits in the binary representation of this integer.
