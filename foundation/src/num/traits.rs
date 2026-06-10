@@ -385,25 +385,25 @@ pub trait BinaryInteger:
     /// ```
     fn is_signed() -> bool;
 
-    /// Returns the number of bits in the current binary representation of this value.
+    /// Returns the bit width of the integer type.
     ///
-    /// For fixed-width integer types (such as `i32`, `u64`, etc.), this method
-    /// returns the total number of bits used for the underlying binary representation
-    /// of the type, including the sign bit for signed integers.
+    /// This returns the number of bits used to represent the type in memory.
+    ///
+    /// For signed types, this includes the sign bit as part of the fixed-width
+    /// two’s complement representation.
     ///
     /// # Returns
-    /// The total number of bits occupied by this value's binary representation.
+    /// The fixed number of bits in the type.
     ///
     /// # Examples
     /// ```
     /// use foundation::num::traits::BinaryInteger;
     ///
     /// assert_eq!(<i32 as BinaryInteger>::bit_width_of(), 32);
-    ///
     /// assert_eq!(<u64 as BinaryInteger>::bit_width_of(), 64);
     /// ```
     fn bit_width_of() -> usize {
-        core::mem::size_of::<Self>() * 8
+        mem::size_of::<Self>() * 8
     }
 
     /// Returns the number of trailing zero bits in the binary representation of this integer.
